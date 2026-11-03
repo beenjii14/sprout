@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.4.0] - 2026-11-03
+
+### Added
+- Support for AI CLIs other than Claude: Gemini CLI, OpenAI Codex CLI, GitHub Copilot CLI and Cursor CLI, picked
+  automatically from the `PATH` or forced with `SPROUT_AI_PROVIDER`.
+- `SPROUT_AI_CMD` runs any AI command (`{prompt}` is replaced by the prompt, otherwise it goes to stdin).
+- `sprout-setup` lists the AI CLIs it finds and asks which one to use.
+
+### Changed
+- `SPROUT_AI_MODEL` applies to any provider and defaults to `haiku` only for Claude.
+
 ## [0.3.0] - 2026-11-03
 
 ### Added
@@ -29,5 +40,6 @@ First public release.
 - Zsh tab completion, `--dry-run`, `--help` and `--version`.
 - Offline test suite, GitHub Actions CI on macOS and Ubuntu, and a project website.
 
+[0.4.0]: https://github.com/beenjii14/sprout/releases/tag/v0.4.0
 [0.3.0]: https://github.com/beenjii14/sprout/releases/tag/v0.3.0
 [0.2.0]: https://github.com/beenjii14/sprout/releases/tag/v0.2.0

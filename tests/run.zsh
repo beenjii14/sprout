@@ -48,6 +48,33 @@ check "es is Spanish"         "1" "$([[ "$(SPROUT_LANG=es _sprout_language_rule)
 check "ticket keeps language" "1" "$([[ "$(SPROUT_LANG=ticket _sprout_language_rule)" == *"same language"* ]] && print 1 || print 0)"
 check "custom language name"  "1" "$([[ "$(SPROUT_LANG=Klingon _sprout_language_rule)" == *Klingon* ]] && print 1 || print 0)"
 
+print "AI providers (fake CLIs, no network)"
+fake="$(mktemp -d)"
+printf '#!/bin/sh\ncat >/dev/null\necho "stdin-provider-name"\n' > "$fake/mystdin"
+printf '#!/bin/sh\necho "arg-$(echo "$*" | grep -c TITLEMARK)-name"\n' > "$fake/myarg"
+printf '#!/bin/sh\necho "Not A Valid Name!"\n' > "$fake/mybad"
+printf '#!/bin/sh\ncat >/dev/null\necho "from-gemini-cli"\n' > "$fake/gemini"
+chmod +x "$fake"/*
+old_path="$PATH"; export PATH="$fake:/usr/bin:/bin"; rehash
+(
+  unset SPROUT_DRY_RUN; export SPROUT_AI=1
+  SPROUT_AI_CMD="mystdin" _sprout_shorten "Some ticket" "" > "$fake/o1"
+  SPROUT_AI_CMD="myarg {prompt}" _sprout_shorten "TITLEMARK ticket" "" > "$fake/o2"
+  SPROUT_AI_CMD="mybad" _sprout_shorten "Add dark mode toggle" "" > "$fake/o3"
+  _sprout_shorten "Some ticket" "" > "$fake/o4"
+  SPROUT_AI_PROVIDER=nope _sprout_shorten "Add dark mode toggle" "" > "$fake/o5"
+  SPROUT_AI_CMD="doesnotexist" _sprout_shorten "Add dark mode toggle" "" > "$fake/o6"
+  SPROUT_AI=0 _sprout_shorten "Add dark mode toggle" "" > "$fake/o7"
+)
+check "custom command, prompt on stdin"     "stdin-provider-name" "$(<"$fake/o1")"
+check "custom command with {prompt}"        "arg-1-name"          "$(<"$fake/o2")"
+check "invalid AI answer falls back"        "add-dark-mode-toggle" "$(<"$fake/o3")"
+check "auto-detects a supported CLI"        "from-gemini-cli"     "$(<"$fake/o4")"
+check "unknown provider falls back"         "add-dark-mode-toggle" "$(<"$fake/o5")"
+check "missing command falls back"          "add-dark-mode-toggle" "$(<"$fake/o6")"
+check "SPROUT_AI=0 never calls the AI"      "add-dark-mode-toggle" "$(<"$fake/o7")"
+export PATH="$old_path"; rehash; rm -rf "$fake"
+
 print "real Git flow (temporary repositories)"
 tmp="$(mktemp -d)"
 (

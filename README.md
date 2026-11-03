@@ -40,7 +40,7 @@ switch to the base branch, pull, create the branch. Do that ten times a week and
 | --- | --- |
 | 🎫 **One command** | `sprout PROJ-142`, or paste a Jira URL, or just run `sprout` with a link on your clipboard. |
 | 🔎 **Reads Jira for you** | Title, issue type and description become the branch name and the `feat` / `fix` / `chore` prefix. |
-| 🌱 **Short, descriptive, in English** | With [Claude](https://claude.com/claude-code) installed, long titles become 2–5 meaningful words, translated to English by default. Without it, a local rule does the job. |
+| 🌱 **Short, descriptive, in English** | With an AI CLI installed ([Claude Code](https://claude.com/claude-code), Gemini CLI, Codex, GitHub Copilot CLI, Cursor, or any command you configure), long titles become 2–5 meaningful words, translated to English by default. Without one, a local rule does the job. |
 | 🛡️ **Careful with your work** | Offers to stash uncommitted changes, reuses an existing branch for the ticket, and stops at the first Git error. |
 | ⚙️ **Yours to configure** | Branch format, language, base branch and remote. |
 | 🔐 **Secrets stay secret** | Your API token lives in the macOS Keychain or libsecret, never in a config file. |
@@ -70,7 +70,7 @@ sprout PROJ-142
 <div align="center">
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/how-it-works-dark.png">
-  <img src="docs/assets/how-it-works-light.png" alt="How sprout works: you run sprout PROJ-142, it extracts the key, reads the ticket from Jira, shortens the title with Claude or a local rule, builds the name, runs safety checks and creates the branch" width="860">
+  <img src="docs/assets/how-it-works-light.png" alt="How sprout works: you run sprout PROJ-142, it extracts the key, reads the ticket from Jira, shortens the title with your AI CLI or a local rule, builds the name, runs safety checks and creates the branch" width="860">
 </picture>
 
 <sub>Interactive version: <a href="https://beenjii14.github.io/sprout/diagrams/how-it-works.html">open the diagram</a></sub>
@@ -88,7 +88,7 @@ sprout PROJ-142
 | `git` | creates the branches | |
 | `curl`, `jq` | talk to Jira | only needed for ticket lookups |
 | `perl` | accent-safe slugs | preinstalled on macOS and most Linux |
-| [`claude`](https://claude.com/claude-code) | *optional*: smarter, translated names | without it, a local rule shortens the title |
+| an AI CLI: `claude`, `gemini`, `codex`, `copilot` or `cursor-agent` | *optional*: smarter, translated names | without one, a local rule shortens the title |
 
 Supported: macOS and Linux, Jira Cloud (API v3, API-token authentication). Using `sprout` with an explicit title needs no Jira at all.
 
@@ -101,7 +101,7 @@ brew install sprout
 sprout-setup                 # guided setup: Jira site, email, token, base branch
 ```
 
-`sprout-setup` asks for your Jira site, email, API token and base branch (and, only if `claude` is installed, whether to
+`sprout-setup` asks for your Jira site, email, API token and base branch (and, if it finds an AI CLI, whether to
 use it for names), stores your token in the macOS Keychain, writes `~/.config/sprout/config`, adds the loader to
 your `~/.zshrc` and verifies the Jira connection. Open a new terminal afterwards. Upgrade with `brew upgrade sprout`.
 
@@ -230,8 +230,10 @@ Put these in `~/.config/sprout/config` (written by the installer) or export them
 | `SPROUT_PULL` | `1` | Set to `0` to skip the pull (offline work). `--no-pull` does it for one run. |
 | `SPROUT_BRANCH_FORMAT` | `{ID}/{type}-{slug}` | Branch template. Placeholders: `{ID}`, `{type}`, `{slug}`. |
 | `SPROUT_TYPES` | `feat fix chore` | Allowed types, space-separated. |
-| `SPROUT_AI` | `1` | Set to `0` to disable Claude-based shortening. |
-| `SPROUT_AI_MODEL` | `haiku` | Model passed to `claude -p`. |
+| `SPROUT_AI` | `1` | Set to `0` to disable AI shortening. |
+| `SPROUT_AI_PROVIDER` | *auto* | `claude`, `gemini`, `codex`, `copilot` or `cursor-agent`. Auto picks the first one found on your `PATH`. |
+| `SPROUT_AI_CMD` | *unset* | Any AI command. `{prompt}` is replaced by the prompt; without it, the prompt is sent on stdin. Overrides the provider. |
+| `SPROUT_AI_MODEL` | `haiku` for Claude | Model passed to the provider (`--model`/`-m`). Leave unset for the CLI's own default. |
 | `SPROUT_LANG` | `en` | Language of AI-generated names: `en`, `es`, `pt`, `fr`, `de`, `it`, any language name, or `ticket` to keep the ticket's own language. |
 | `SPROUT_COMMAND` | `sprout` | Rename the command if it clashes with another tool. |
 | `SPROUT_DRY_RUN` | *unset* | Any value behaves like `--dry-run`. |
@@ -270,22 +272,45 @@ The token is handed to `curl` over stdin, so it never shows up in `ps`. Revoke i
 
 ## 🤖 AI-assisted names and privacy
 
-When `claude` (the [Claude Code CLI](https://claude.com/claude-code)) is installed and `SPROUT_AI` is not `0`,
-`sprout` sends **the ticket title and the first 1,500 characters of its description** to Anthropic through that CLI to get a
-2–5 word name. The prompt tells the model to base the name on the title, keep proper nouns and technologies,
-never invent concepts, and write the name in English by default (a Spanish ticket becomes an English branch name;
-change it with `SPROUT_LANG`). The answer is validated (`[a-z0-9-]` only, 3–40 characters); if it fails, times out (25 s)
-or looks wrong, `sprout` falls back to a local heuristic that drops stop-words and keeps the first four meaningful words
-(the heuristic cannot translate, so it keeps the ticket's own words).
+When an AI CLI is available and `SPROUT_AI` is not `0`, `sprout` sends **the ticket title and the first 1,500 characters
+of its description** to that tool's provider to get a 2–5 word name. The prompt tells the model to base the name on the
+title, keep proper nouns and technologies, never invent concepts, and write the name in English by default (a Spanish
+ticket becomes an English branch name; change it with `SPROUT_LANG`). The answer is validated (`[a-z0-9-]` only, 3–40
+characters); if it fails, times out (25 s) or looks wrong, `sprout` falls back to a local heuristic that drops stop-words
+and keeps the first four meaningful words (the heuristic cannot translate, so it keeps the ticket's own words).
+
+**Which AI?** Whatever you already use, as long as it has a command-line tool:
+
+| Tool | Provider value | Command `sprout` runs |
+| --- | --- | --- |
+| [Claude Code](https://claude.com/claude-code) | `claude` | `claude -p --model haiku "<prompt>"` |
+| [Gemini CLI](https://geminicli.com) | `gemini` | `gemini -p "<prompt>"` |
+| [OpenAI Codex CLI](https://developers.openai.com/codex) | `codex` | `codex exec -` (prompt on stdin) |
+| [GitHub Copilot CLI](https://docs.github.com/copilot/how-tos/copilot-cli) | `copilot` | `copilot -s -p "<prompt>"` |
+| [Cursor CLI](https://cursor.com/docs/cli) | `cursor-agent` | `cursor-agent -p "<prompt>"` |
+
+With no setting, `sprout` uses the first of these it finds on your `PATH`; `sprout-setup` shows what it found and lets you
+choose. Set `SPROUT_AI_PROVIDER` to force one, or `SPROUT_AI_CMD` for anything else:
+
+```sh
+export SPROUT_AI_CMD='ollama run llama3.2'         # a local model: nothing leaves your machine
+export SPROUT_AI_CMD='llm -m gpt-4o-mini'          # Simon Willison's llm
+export SPROUT_AI_CMD='my-ai --short {prompt}'      # {prompt} becomes an argument; without it, stdin
+```
+
+> [!NOTE]
+> Only the Claude preset is tested end to end by the maintainer. The others follow each tool's documented non-interactive mode
+> and are covered by tests with stand-in commands. If one breaks with your version, set `SPROUT_AI_CMD` to the right command
+> and please [open an issue](https://github.com/beenjii14/sprout/issues).
 
 **Language.** Names are written in English by default, so a ticket titled *"Agregar login con SSO para el panel de administración"*
 becomes something like `admin-panel-sso-login`. Set `SPROUT_LANG` to `es`, `pt`, `fr`, `de`, `it`, any language name, or `ticket`
 to keep the ticket's own language.
 
 > [!NOTE]
-> **No `claude`? No problem.** `sprout` checks for the command on every run. If it is missing, or `SPROUT_AI=0`, the local rule is used and everything else works the same.
-> `sprout-setup` writes `SPROUT_AI=0` to your config when you decline the question or `claude` is not installed yet;
-> install `claude` later and set `SPROUT_AI=1` (or delete that line) to turn it on.
+> **No AI CLI? No problem.** `sprout` checks for one on every run. If none is found, or `SPROUT_AI=0`, the local rule is used and everything else works the same.
+> `sprout-setup` writes `SPROUT_AI=0` to your config when you decline the question or no AI CLI is installed yet;
+> install one later and set `SPROUT_AI=1` (or delete that line) to turn it on.
 
 > [!IMPORTANT]
 > Working with confidential tickets? Set `SPROUT_AI=0`. Nothing but the Jira request then leaves your machine.
@@ -309,15 +334,15 @@ Set `export SPROUT_COMMAND=sp` (any name) in `~/.config/sprout/config` and open 
 
 <br>
 
-English by default, even for Spanish (or other) tickets, when Claude is available. Change it with `SPROUT_LANG` (`es`, `pt`, `fr`, `de`, `it`, any language name) or use `SPROUT_LANG=ticket` to keep the ticket's language. When you pass the title yourself, it is used as-is.
+English by default, even for Spanish (or other) tickets, when an AI CLI is available. Change it with `SPROUT_LANG` (`es`, `pt`, `fr`, `de`, `it`, any language name) or use `SPROUT_LANG=ticket` to keep the ticket's language. When you pass the title yourself, it is used as-is.
 </details>
 
 <details>
-<summary><b>What if I do not have Claude installed?</b></summary>
+<summary><b>What if I do not use Claude, or have no AI CLI at all?</b></summary>
 
 <br>
 
-`sprout` still works: it shortens the title with a local rule (drops stop-words, keeps the first four meaningful words) and keeps the ticket's own words, with no translation.
+`sprout` works with Gemini, Codex, Copilot, Cursor or any command you configure (see [Which AI?](#-ai-assisted-names-and-privacy)). With none, it shortens the title with a local rule (drops stop-words, keeps the first four meaningful words) and keeps the ticket's own words, with no translation.
 </details>
 
 <details>

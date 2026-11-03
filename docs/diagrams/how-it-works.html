@@ -5285,7 +5285,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         <path data-edge-from="git" data-edge-to="done" data-edge-key="2" data-edge-id="ready" data-composition-routing="workflow-v2-auto" data-edge-role="" data-composition-points="626,624;700,624;700,146" d="M 626 624 L 692 624 Q 700 624 700 616 L 700 146" class="a-emphasis" data-animate="edge" style="--step:6" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
         <path data-edge-from="cmd" data-edge-to="key" data-edge-key="3" data-edge-id="run" data-composition-routing="workflow-v2-auto" data-edge-role="" data-composition-points="144,120;216,120;216,220" d="M 144 120 L 208 120 Q 216 120 216 128 L 216 220" class="a-default" data-animate="edge" style="--step:0" stroke-width="1.4" marker-end="url(#arrowhead)"/>
         <path data-edge-from="shorten" data-edge-to="build" data-edge-label="short name" data-edge-key="4" data-edge-id="short-name" data-composition-routing="workflow-v2-auto" data-edge-role="" data-composition-points="456,472;456,272" d="M 456 472 L 456 272" class="a-emphasis" data-animate="edge" style="--step:3" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <path data-edge-from="jira" data-edge-to="shorten" data-edge-label="title + description" data-edge-key="5" data-edge-id="title" data-composition-routing="workflow-v2-auto" data-edge-role="" data-composition-points="336,406;336,498;410,498" d="M 336 406 L 336 490 Q 336 498 344 498 L 410 498" class="a-emphasis" data-animate="edge" style="--step:2" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="jira" data-edge-to="shorten" data-edge-label="title + description" data-edge-key="5" data-edge-id="title" data-composition-routing="workflow-v2-auto" data-edge-role="" data-composition-points="336,406;336,498;384,498" d="M 336 406 L 336 490 Q 336 498 344 498 L 384 498" class="a-emphasis" data-animate="edge" style="--step:2" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
         <path data-edge-from="build" data-edge-to="checks" data-edge-key="6" data-edge-id="to-checks" data-composition-routing="workflow-v2-auto" data-edge-role="" data-composition-points="502,246;534,246" d="M 502 246 L 534 246" class="a-default" data-animate="edge" style="--step:4" stroke-width="1.4" marker-end="url(#arrowhead)"/>
 
         <!-- Nodes -->
@@ -5361,16 +5361,16 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         <text data-detail="fine" x="336" y="394" class="t-cloud" font-size="7" text-anchor="middle">skipped if you pass a title</text>
         </g>
 
-        <g id="node-shorten" data-node-id="shorten" data-node-label="Shorten title" tabindex="0" role="button" aria-label="Focus Shorten title, Claude, else local rule, Short name › Read + name" aria-pressed="false" data-node-kind="external" data-node-sublabel="Claude, else local rule" data-node-context="Short name › Read + name">
-          <title>Shorten title · Claude, else local rule · Short name › Read + name</title>
-          <rect x="410" y="472" width="92" height="52" rx="8" class="c-mask"/>
-          <rect x="410" y="472" width="92" height="52" rx="8" class="c-external" data-animate="node" style="--step:3" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="external" class="semantic-sigil s-external" transform="translate(416 478) scale(0.6875)">
+        <g id="node-shorten" data-node-id="shorten" data-node-label="Shorten title" tabindex="0" role="button" aria-label="Focus Shorten title, your AI CLI, else local rule, Short name › Read + name" aria-pressed="false" data-node-kind="external" data-node-sublabel="your AI CLI, else local rule" data-node-context="Short name › Read + name">
+          <title>Shorten title · your AI CLI, else local rule · Short name › Read + name</title>
+          <rect x="384" y="472" width="144" height="52" rx="8" class="c-mask"/>
+          <rect x="384" y="472" width="144" height="52" rx="8" class="c-external" data-animate="node" style="--step:3" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="external" class="semantic-sigil s-external" transform="translate(390 478) scale(0.6875)">
             <rect x="2.5" y="5" width="8.5" height="8" rx="1.5"/>
             <path d="M8 2.5h5.5V8M13.5 2.5 7.5 8.5"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="456" y="503.9" class="t-primary" font-size="10.7" font-weight="600" text-anchor="middle">Shorten title</text>
-          <text data-detail="context" x="456" y="516.4" class="t-muted" font-size="6" text-anchor="middle">Claude, else local rule</text>
+          <text data-node-label="" data-detail-anchor="" x="456" y="493" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Shorten title</text>
+          <text data-detail="context" x="456" y="510" class="t-muted" font-size="8" text-anchor="middle">your AI CLI, else local rule</text>
         </g>
 
         <g id="node-git" data-node-id="git" data-node-label="Create branch" tabindex="0" role="button" aria-label="Focus Create branch, switch, pull, switch -c, Git › Check + create" aria-pressed="false" data-node-kind="database" data-node-sublabel="switch, pull, switch -c" data-node-context="Git › Check + create">
@@ -5625,11 +5625,11 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       <div class="card">
         <div class="card-header">
           <div class="card-dot emerald"></div>
-          <h3>Claude or local rule</h3>
+          <h3>AI CLI or local rule</h3>
         </div>
         <ul>
-          <li>With the Claude CLI: 2-5 words, translated to English by default</li>
-          <li>Without it, a local rule keeps the first meaningful words</li>
+          <li>With an AI CLI (Claude, Gemini, Codex, Copilot, Cursor...): 2-5 words, in English by default</li>
+          <li>Without one, a local rule keeps the first meaningful words</li>
         </ul>
       </div>
 

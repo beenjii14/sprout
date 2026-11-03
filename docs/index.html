@@ -199,7 +199,7 @@ Switched to a new branch 'PROJ-142/feat-sso-login-okta-admin'</span>
       <div class="grid">
         <article class="card"><div class="ico" aria-hidden="true">#</div><h3>Key or URL, even from the clipboard</h3><p>Pass <code>PROJ-123</code>, paste a Jira link, or run <code>sprout</code> with a URL on your clipboard. Hostnames never get mistaken for tickets.</p></article>
         <article class="card"><div class="ico" aria-hidden="true">&#8644;</div><h3>Reads title and type from Jira</h3><p>Bug becomes <code>fix</code>, Tech task becomes <code>chore</code>, the rest <code>feat</code>. Or pass your own title and type, no Jira needed.</p></article>
-        <article class="card"><div class="ico" aria-hidden="true">&#10024;</div><h3>Short, descriptive, in English</h3><p>With Claude installed, long tickets become 2&ndash;5 meaningful words, translated to English by default (set <code>SPROUT_LANG</code> for another language). Without it, a local rule does the job.</p></article>
+        <article class="card"><div class="ico" aria-hidden="true">&#10024;</div><h3>Short, descriptive, in English</h3><p>With an AI CLI installed (Claude Code, Gemini, Codex, Copilot, Cursor or your own command), long tickets become 2&ndash;5 meaningful words, translated to English by default (set <code>SPROUT_LANG</code> for another language). Without it, a local rule does the job.</p></article>
         <article class="card"><div class="ico" aria-hidden="true">&#128737;</div><h3>Careful with your work</h3><p>Offers to stash uncommitted changes, switches to an existing branch for the ticket instead of duplicating it, and stops at the first Git error.</p></article>
         <article class="card"><div class="ico" aria-hidden="true">&#9881;</div><h3>Your conventions</h3><p>Custom branch format, allowed types, base branch and remote. The remote default branch is auto-detected.</p></article>
         <article class="card"><div class="ico" aria-hidden="true">&#128273;</div><h3>Token stays in the keychain</h3><p>macOS Keychain or libsecret on Linux. Credentials are never written to the config and never appear in <code>ps</code>.</p></article>
@@ -222,7 +222,7 @@ Switched to a new branch 'PROJ-142/feat-sso-login-okta-admin'</span>
   <section id="install" class="band">
     <div class="wrap">
       <h2>Install</h2>
-      <p class="sub">Requires zsh, git, curl, jq and perl. The installer checks them, asks a few questions (Jira site, email, token, base branch, and whether to use Claude for names) and wires everything up.</p>
+      <p class="sub">Requires zsh, git, curl, jq and perl. The installer checks them, asks a few questions (Jira site, email, token, base branch, and which AI to use for names) and wires everything up.</p>
       <div class="tabs-like">
         <div>
           <h3>Homebrew</h3>
@@ -293,8 +293,10 @@ beenjii14/sprout</code></pre><button class="copy" type="button" data-copy="zinit
             <tr><td><code>SPROUT_PULL</code></td><td><code>1</code></td><td>Set to <code>0</code> to skip the pull (offline work); <code>--no-pull</code> does it for one run.</td></tr>
             <tr><td><code>SPROUT_BRANCH_FORMAT</code></td><td><code>{ID}/{type}-{slug}</code></td><td>Template for the name. Placeholders: <code>{ID}</code>, <code>{type}</code>, <code>{slug}</code>.</td></tr>
             <tr><td><code>SPROUT_TYPES</code></td><td><code>feat fix chore</code></td><td>Allowed types, space-separated.</td></tr>
-            <tr><td><code>SPROUT_AI</code></td><td><code>1</code></td><td>Set to <code>0</code> to disable Claude-based name shortening.</td></tr>
-            <tr><td><code>SPROUT_AI_MODEL</code></td><td><code>haiku</code></td><td>Model passed to <code>claude -p</code>.</td></tr>
+            <tr><td><code>SPROUT_AI</code></td><td><code>1</code></td><td>Set to <code>0</code> to disable AI name shortening.</td></tr>
+            <tr><td><code>SPROUT_AI_PROVIDER</code></td><td><em>auto</em></td><td><code>claude</code>, <code>gemini</code>, <code>codex</code>, <code>copilot</code> or <code>cursor-agent</code>. Auto picks the first one on your <code>PATH</code>.</td></tr>
+            <tr><td><code>SPROUT_AI_CMD</code></td><td><em>unset</em></td><td>Any AI command; <code>{prompt}</code> is replaced by the prompt, otherwise it goes to stdin.</td></tr>
+            <tr><td><code>SPROUT_AI_MODEL</code></td><td><code>haiku</code> for Claude</td><td>Model passed to the provider. Unset uses the CLI default.</td></tr>
             <tr><td><code>SPROUT_LANG</code></td><td><code>en</code></td><td>Language of AI-generated names (<code>en</code>, <code>es</code>, <code>pt</code>, <code>fr</code>, <code>de</code>, <code>it</code>, a language name, or <code>ticket</code> to keep the ticket's language).</td></tr>
             <tr><td><code>SPROUT_COMMAND</code></td><td><code>sprout</code></td><td>Rename the command if it clashes with another tool.</td></tr>
             <tr><td><code>SPROUT_DRY_RUN</code></td><td><em>unset</em></td><td>Any value behaves like <code>--dry-run</code>.</td></tr>
@@ -307,9 +309,9 @@ beenjii14/sprout</code></pre><button class="copy" type="button" data-copy="zinit
   <section id="faq">
     <div class="wrap">
       <h2>FAQ</h2>
-      <details><summary>What language are the branch names in?</summary><p>English by default, even for Spanish or other tickets, when Claude is available. Set <code>SPROUT_LANG</code> to <code>es</code>, <code>pt</code>, <code>fr</code>, <code>de</code>, <code>it</code> or any language name, or to <code>ticket</code> to keep the ticket's own language. A title you pass yourself is used as-is.</p></details>
-      <details><summary>What if I do not have Claude installed?</summary><p>sprout still works. It checks for <code>claude</code> on every run and, if it is missing, shortens the title with a local rule: it drops stop-words and keeps the first four meaningful words, without translating.</p></details>
-      <details><summary>Does my ticket text leave my machine?</summary><p>Only when you opt in to AI naming. In that case the title and the first 1,500 characters of the description are sent to Anthropic through your local <code>claude</code> CLI. Disable it with <code>SPROUT_AI=0</code>; sprout then uses a local heuristic and nothing else leaves your machine except the Jira request itself.</p></details>
+      <details><summary>What language are the branch names in?</summary><p>English by default, even for Spanish or other tickets, when an AI CLI is available. Set <code>SPROUT_LANG</code> to <code>es</code>, <code>pt</code>, <code>fr</code>, <code>de</code>, <code>it</code> or any language name, or to <code>ticket</code> to keep the ticket's own language. A title you pass yourself is used as-is.</p></details>
+      <details><summary>What if I do not use Claude, or have no AI CLI?</summary><p>sprout works with Gemini, Codex, Copilot, Cursor or any command set in <code>SPROUT_AI_CMD</code>. With none installed, it shortens the title with a local rule: it drops stop-words and keeps the first four meaningful words, without translating.</p></details>
+      <details><summary>Does my ticket text leave my machine?</summary><p>Only when you opt in to AI naming. In that case the title and the first 1,500 characters of the description are sent to your AI provider through the CLI you use (for example <code>claude</code> or <code>gemini</code>). Disable it with <code>SPROUT_AI=0</code>; sprout then uses a local heuristic and nothing else leaves your machine except the Jira request itself.</p></details>
       <details><summary>Where is my API token stored?</summary><p>In the macOS Keychain or libsecret (service <code>sprout-jira-token</code>). Without either, the installer falls back to a <code>600</code>-mode file. sprout passes it to curl over stdin, so it never appears in process listings. Prefer to manage it yourself? Export <code>JIRA_API_TOKEN</code>.</p></details>
       <details><summary>Does it work with Jira Server or Data Center?</summary><p>Not yet. The lookup uses the Jira Cloud REST API v3 with an API token. You can still use sprout anywhere by passing the title yourself.</p></details>
       <details><summary>The <code>sprout</code> command clashes with something else on my machine.</summary><p>Set <code>SPROUT_COMMAND=sp</code> (or any name) in your config and open a new shell. The command, help text and completion follow it.</p></details>

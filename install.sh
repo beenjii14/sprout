@@ -68,8 +68,14 @@ done
 if [ -n "$missing" ]; then
   die "missing dependencies:$missing  (macOS: brew install$missing | Debian/Ubuntu: sudo apt install$missing)"
 fi
-command -v claude >/dev/null 2>&1 \
-  || info "Claude Code CLI not found: branch names will be shortened with the built-in heuristic (still works; install claude later for smarter names)."
+# AI CLIs sprout can use to shorten names (optional): "command:Vendor".
+AI_CANDIDATES="claude:Anthropic gemini:Google codex:OpenAI copilot:GitHub cursor-agent:Cursor"
+ai_found=""
+for entry in $AI_CANDIDATES; do
+  command -v "${entry%%:*}" >/dev/null 2>&1 && ai_found="$ai_found $entry"
+done
+[ -n "$ai_found" ] \
+  || info "No AI CLI found (claude, gemini, codex, copilot, cursor-agent): names will use the built-in rule (still works; install one later for smarter names)."
 
 # 2. Install the plugin file ---------------------------------------------------
 SRC_DIR=""
@@ -114,14 +120,26 @@ base="$(ask "Base branch to branch from (empty = auto-detect the remote default)
 
 echo
 bold "Naming"
-ai=1
-if command -v claude >/dev/null 2>&1; then
-  yesno "Use Claude to shorten branch names? The ticket title and description are sent to Anthropic" "y" || ai=0
-else
+ai=1; ai_provider=""
+set -- $ai_found
+if [ "$#" -eq 0 ]; then
   ai=0
+else
+  choice="${1%%:*}"; vendor="${1#*:}"
+  if [ "$#" -gt 1 ]; then
+    list=""; for entry in "$@"; do list="$list ${entry%%:*}"; done
+    choice="$(ask "AI CLIs found:$list. Which one should shorten names? (none = local rule)" "$choice")"
+    vendor=""
+    for entry in "$@"; do [ "${entry%%:*}" = "$choice" ] && vendor="${entry#*:}"; done
+    [ -n "$vendor" ] || ai=0
+  fi
+  if [ "$ai" -eq 1 ]; then
+    yesno "Use $choice to shorten branch names? The ticket title and description are sent to $vendor" "y" \
+      && ai_provider="$choice" || ai=0
+  fi
 fi
 
-safe "$jira_host"; safe "$jira_email"; safe "$base"
+safe "$jira_host"; safe "$jira_email"; safe "$base"; safe "$ai_provider"
 
 # 4. Store the token ---------------------------------------------------------------
 store_token() {
@@ -150,6 +168,8 @@ mkdir -p "$CONF_DIR"
   [ -n "$jira_email" ] && printf 'export JIRA_EMAIL="${JIRA_EMAIL:-%s}"\n' "$jira_email"
   [ -n "$base" ]       && printf 'export SPROUT_BASE="${SPROUT_BASE:-%s}"\n' "$base"
   printf 'export SPROUT_AI="${SPROUT_AI:-%s}"\n' "$ai"
+  [ -n "$ai_provider" ] && printf 'export SPROUT_AI_PROVIDER="${SPROUT_AI_PROVIDER:-%s}"\n' "$ai_provider"
+  echo '# export SPROUT_AI_CMD="your-ai-cli {prompt}"  # any AI CLI: {prompt} is replaced by the prompt, or it is sent on stdin'
   echo '# export SPROUT_TYPES="feat fix chore"   # allowed branch types (the type comes from the Jira issue type, default feat)'
   echo '# export SPROUT_LANG="en"                # language of AI-generated names: en, es, pt, fr, de, it, ... or "ticket"'
   echo '# export SPROUT_BRANCH_FORMAT="{ID}/{type}-{slug}"'

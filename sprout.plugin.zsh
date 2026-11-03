@@ -8,7 +8,7 @@
 # Usage:  sprout [-n|--dry-run] [<KEY|URL>] ["<title>"] [<type>]
 # Docs:   sprout --help  |  README.md
 
-typeset -g SPROUT_VERSION="0.3.0"
+typeset -g SPROUT_VERSION="0.4.0"
 
 # Configuration file written by install.sh. Variables already exported in the
 # shell win over the ones in the file.
@@ -137,18 +137,63 @@ _sprout_language_rule() {
   esac
 }
 
-# Condenses a ticket into 2-5 slug words: asks the Claude CLI when available,
-# otherwise drops stop-words and keeps the first four meaningful words (the
+# Fills `reply` with the command that talks to the AI: $SPROUT_AI_CMD, else the
+# preset named by $SPROUT_AI_PROVIDER, else the first supported CLI on the PATH
+# (claude, gemini, codex, copilot, cursor-agent). A `{prompt}` word is replaced by
+# the prompt; without one, the prompt goes to stdin. Returns 1 when none is usable.
+_sprout_ai_command() {
+  emulate -L zsh
+  local p="${SPROUT_AI_PROVIDER:-}" model="${SPROUT_AI_MODEL:-}" c
+  reply=()
+  if [[ -n "$SPROUT_AI_CMD" ]]; then
+    reply=("${(@Q)${(z)SPROUT_AI_CMD}}")
+    (( $#reply )) && (( $+commands[$reply[1]] )); return
+  fi
+  if [[ -z "$p" ]]; then
+    for c in claude gemini codex copilot cursor-agent; do
+      (( $+commands[$c] )) && { p=$c; break; }
+    done
+  fi
+  case "${(L)p}" in
+    claude)              reply=(claude -p --model "${model:-haiku}" '{prompt}') ;;
+    gemini)              reply=(gemini ${model:+-m} ${model:+$model} -p '{prompt}') ;;
+    codex)               reply=(codex exec ${model:+-m} ${model:+$model} -) ;;
+    copilot)             reply=(copilot -s ${model:+--model} ${model:+$model} -p '{prompt}') ;;
+    cursor|cursor-agent) reply=(cursor-agent -p ${model:+--model} ${model:+$model} '{prompt}') ;;
+    *)                   return 1 ;;
+  esac
+  (( $+commands[$reply[1]] ))
+}
+
+# Sends $1 to the AI command (25 s limit) and prints its raw answer.
+_sprout_ai_ask() {
+  emulate -L zsh
+  local prompt="$1" i has=0
+  local -a cmd
+  _sprout_ai_command || return 1
+  cmd=("${reply[@]}")
+  for i in {1..$#cmd}; do
+    if [[ "${cmd[i]}" == *'{prompt}'* ]]; then cmd[i]="${cmd[i]//\{prompt\}/$prompt}"; has=1; fi
+  done
+  if (( has )); then
+    perl -e 'alarm 25; exec @ARGV' "${cmd[@]}" </dev/null 2>/dev/null
+  else
+    printf '%s' "$prompt" | perl -e 'alarm 25; exec @ARGV' "${cmd[@]}" 2>/dev/null
+  fi
+}
+
+# Condenses a ticket into 2-5 slug words: asks the configured AI CLI when there is
+# one, otherwise drops stop-words and keeps the first four meaningful words (the
 # local fallback cannot translate: it keeps the ticket's own words).
 _sprout_shorten() {
   emulate -L zsh
   local title="$1" desc="$2" out=""
 
-  if [[ "${SPROUT_AI:-1}" != 0 ]] && (( $+commands[claude] )); then
-    out="$(printf 'Ticket title: %s\nDescription / acceptance criteria: %s\n' "$title" "$desc" \
-      | perl -e 'alarm 25; exec @ARGV' claude -p --model "${SPROUT_AI_MODEL:-haiku}" \
-          "Create a short git branch name for this Jira ticket. Rules: 2 to 5 lowercase words joined by hyphens, ASCII only (no accents), no prefix (no change type, no ticket key). Short but descriptive. Base it on the TITLE; use the description only to disambiguate and to pick the most representative words. Keep proper nouns and technologies; drop generic verbs (set up, create, implement). Do not invent concepts that are not in the ticket. $(_sprout_language_rule) Reply with ONLY the name." \
-          2>/dev/null | tail -n1)"
+  if [[ "${SPROUT_AI:-1}" != 0 ]]; then
+    out="$(_sprout_ai_ask "Create a short git branch name for this Jira ticket. Rules: 2 to 5 lowercase words joined by hyphens, ASCII only (no accents), no prefix (no change type, no ticket key). Short but descriptive. Base it on the TITLE; use the description only to disambiguate and to pick the most representative words. Keep proper nouns and technologies; drop generic verbs (set up, create, implement). Do not invent concepts that are not in the ticket. $(_sprout_language_rule) Reply with ONLY the name.
+
+Ticket title: ${title}
+Description / acceptance criteria: ${desc}" | tail -n1)"
     # Accept only a well-formed answer, otherwise fall back to the heuristic.
     [[ "$out" =~ '^[a-z0-9]+(-[a-z0-9]+){0,5}$' && ${#out} -ge 3 && ${#out} -le 40 ]] || out=""
   fi
