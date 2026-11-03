@@ -1,0 +1,42 @@
+name: Bug report
+description: Something does not work as expected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time! **Never paste API tokens or private ticket content.**
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you run, what did you expect and what did you get?
+      placeholder: "I ran `sprout PROJ-123 --dry-run` and expected ... but got ..."
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: sprout version
+      description: Output of `sprout --version`
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: OS and zsh version
+      description: For example "macOS 15, zsh 5.9" or "Ubuntu 24.04, zsh 5.9"
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How did you install it?
+      options: [Homebrew, install.sh, Plugin manager, Manual]
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Extra context
+      description: Relevant (non-secret) configuration such as `SPROUT_BASE` or `SPROUT_BRANCH_FORMAT`.

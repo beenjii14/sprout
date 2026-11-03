@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 420" role="img" aria-labelledby="t d">
+  <title id="t">sprout</title>
+  <desc id="d">sprout: Git branches from Jira tickets, in one command.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#042f2e"/><stop offset=".55" stop-color="#0b5d56"/><stop offset="1" stop-color="#0f766e"/>
+    </linearGradient>
+    <radialGradient id="glow" cx=".18" cy=".35" r=".6">
+      <stop offset="0" stop-color="#2dd4bf" stop-opacity=".35"/><stop offset="1" stop-color="#2dd4bf" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1280" height="420" fill="url(#bg)"/>
+  <rect width="1280" height="420" fill="url(#glow)"/>
+  
+  <g transform="translate(110 0)" stroke="#ffffff" stroke-opacity=".16" stroke-width="5" fill="none" stroke-linecap="round">
+    <path d="M900 40 V380"/><path d="M900 120 C900 170 1010 150 1010 210 V380"/>
+    <path d="M1010 250 C1010 290 1120 270 1120 320 V380"/>
+  </g>
+  <g transform="translate(110 0)" fill="#ffffff" fill-opacity=".28">
+    <circle cx="900" cy="60" r="11"/><circle cx="900" cy="120" r="11"/><circle cx="1010" cy="210" r="11"/>
+    <circle cx="1010" cy="250" r="11"/><circle cx="1120" cy="320" r="11"/><circle cx="900" cy="330" r="11"/>
+  </g>
+  
+  <g transform="translate(150 292)" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M0 0 V-92" stroke="#99f6e4" stroke-width="10"/>
+    <path d="M0 -58 C-44 -60 -66 -92 -62 -122 C-24 -118 0 -92 0 -58 Z" fill="#5eead4" stroke="#5eead4" stroke-width="4"/>
+    <path d="M0 -84 C42 -92 74 -120 72 -156 C30 -152 0 -122 0 -84 Z" fill="#ccfbf1" stroke="#ccfbf1" stroke-width="4"/>
+    <path d="M-34 0 H34" stroke="#99f6e4" stroke-width="10"/>
+  </g>
+  <g font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif">
+    <text x="258" y="215" font-size="124" font-weight="800" fill="#ffffff" letter-spacing="-3">sprout</text>
+    <text x="262" y="272" font-size="35" font-weight="500" fill="#99f6e4">Git branches from Jira tickets, in one command.</text>
+  </g>
+  <rect x="262" y="318" width="740" height="50" rx="12" fill="#021a19" fill-opacity=".72" stroke="#ffffff" stroke-opacity=".18"/>
+  <text x="284" y="350" font-size="21" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" fill="#e6fffb">
+    <tspan fill="#5eead4">$</tspan> sprout PROJ-142 <tspan fill="#5eead4">→</tspan> <tspan fill="#fde68a">PROJ-142/feat-sso-login-okta-admin</tspan>
+  </text>
+</svg>
