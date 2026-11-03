@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.3.0] - 2026-11-03
+
+### Added
+- `-b`/`--base <branch>` starts the new branch from another base for a single run (also `--base=<branch>`).
+- `-r`/`--remote <name>` pulls from another remote for a single run.
+- `--no-pull` skips the pull for a single run.
+- Tab completion for the new options.
+
 ## [0.2.0] - 2026-11-02
 
 First public release.
@@ -21,4 +29,5 @@ First public release.
 - Zsh tab completion, `--dry-run`, `--help` and `--version`.
 - Offline test suite, GitHub Actions CI on macOS and Ubuntu, and a project website.
 
+[0.3.0]: https://github.com/beenjii14/sprout/releases/tag/v0.3.0
 [0.2.0]: https://github.com/beenjii14/sprout/releases/tag/v0.2.0

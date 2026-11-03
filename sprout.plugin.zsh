@@ -8,7 +8,7 @@
 # Usage:  sprout [-n|--dry-run] [<KEY|URL>] ["<title>"] [<type>]
 # Docs:   sprout --help  |  README.md
 
-typeset -g SPROUT_VERSION="0.2.0"
+typeset -g SPROUT_VERSION="0.3.0"
 
 # Configuration file written by install.sh. Variables already exported in the
 # shell win over the ones in the file.
@@ -191,14 +191,18 @@ Arguments:
   type      One of: ${SPROUT_TYPES:-feat fix chore}. Defaults to the issue type mapping, else feat.
 
 Options:
-  -n, --dry-run   Print the branch name only; do not touch Git.
-  -h, --help      Show this help.
-  -v, --version   Show the version.
+  -b, --base <branch>   Start from this branch instead of the configured base.
+  -r, --remote <name>   Pull from this remote instead of the configured one.
+      --no-pull         Skip the pull for this run (offline work).
+  -n, --dry-run         Print the branch name only; do not touch Git.
+  -h, --help            Show this help.
+  -v, --version         Show the version.
 
 Examples:
   sprout PROJ-123                      # title and type come from Jira
   sprout PROJ-123 "Add login page"     # no Jira lookup needed
   sprout https://acme.atlassian.net/browse/PROJ-123 "Hotfix" fix
+  sprout PROJ-123 --base develop       # branch off develop just this once
 EOF
 }
 
@@ -207,13 +211,24 @@ EOF
 _sprout_run() {
   emulate -L zsh
   local -a args
-  local dry="${SPROUT_DRY_RUN:-}"
+  local dry="${SPROUT_DRY_RUN:-}" base_opt="" remote_opt="" pull="${SPROUT_PULL:-1}"
 
   while (( $# )); do
     case "$1" in
       -h|--help)    _sprout_usage; return 0 ;;
       -v|--version) print "sprout $SPROUT_VERSION"; return 0 ;;
       -n|--dry-run) dry=1 ;;
+      --no-pull)    pull=0 ;;
+      -b|--base|-r|--remote)
+        if [[ -z "$2" || "$2" == -* ]]; then
+          _sprout_err "$1 needs a value."
+          print -u2 -r -- "Run '${SPROUT_COMMAND:-sprout} --help' for usage."
+          return 1
+        fi
+        if [[ "$1" == -b || "$1" == --base ]]; then base_opt="$2"; else remote_opt="$2"; fi
+        shift ;;
+      --base=*)     base_opt="${1#--base=}" ;;
+      --remote=*)   remote_opt="${1#--remote=}" ;;
       --)           shift; args+=("$@"); break ;;
       *)            args+=("$1") ;;
     esac
@@ -278,8 +293,8 @@ _sprout_run() {
 
   git rev-parse --is-inside-work-tree >/dev/null 2>&1 || { _sprout_err "not inside a Git repository."; return 1; }
 
-  local base remote="${SPROUT_REMOTE:-origin}"
-  base="$(_sprout_default_base)"
+  local base remote="${remote_opt:-${SPROUT_REMOTE:-origin}}"
+  base="${base_opt:-$(_sprout_default_base)}"
 
   # Already there? Just switch.
   if git show-ref --verify --quiet "refs/heads/${branch}"; then
@@ -311,7 +326,7 @@ _sprout_run() {
   fi
 
   git switch "$base" || return 1
-  if [[ "${SPROUT_PULL:-1}" != 0 ]]; then
+  if [[ "$pull" != 0 ]]; then
     git pull "$remote" "$base" || return 1
   fi
   git switch -c "$branch" || return 1
@@ -323,6 +338,10 @@ _sprout_run() {
 # Tab completion for the ticket, title and type arguments.
 _sprout_complete() {
   _arguments \
+    '(-b --base)'{-b,--base}'[start from this branch]:branch:__git_branch_names' \
+    '(-r --remote)'{-r,--remote}'[pull from this remote]:remote:__git_remotes' \
+    '--no-pull[skip the pull]' \
+    '(-n --dry-run)'{-n,--dry-run}'[print the branch name only]' \
     '1:Jira key or URL:' \
     '2:title:' \
     "3:type:(${SPROUT_TYPES:-feat fix chore})"

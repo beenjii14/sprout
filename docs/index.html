@@ -269,6 +269,8 @@ beenjii14/sprout</code></pre><button class="copy" type="button" data-copy="zinit
 <span class="prompt">$ </span>sprout PROJ-123 "Crash on start" fix  <span class="t-dim"># explicit type</span>
 <span class="prompt">$ </span>sprout https://acme.atlassian.net/browse/PROJ-123
 <span class="prompt">$ </span>sprout                                <span class="t-dim"># uses the Jira URL on your clipboard</span>
+<span class="prompt">$ </span>sprout PROJ-123 --base develop        <span class="t-dim"># branch off develop, just this once</span>
+<span class="prompt">$ </span>sprout PROJ-123 --no-pull             <span class="t-dim"># skip the pull (offline work)</span>
 <span class="prompt">$ </span>sprout --dry-run PROJ-123            <span class="t-dim"># print the name, do not touch Git</span></code></pre>
         <button class="copy" type="button" data-copy="sprout --dry-run PROJ-123">Copy</button>
       </div>
@@ -286,9 +288,9 @@ beenjii14/sprout</code></pre><button class="copy" type="button" data-copy="zinit
             <tr><td><code>SPROUT_JIRA_HOST</code></td><td><em>none</em></td><td>Your Jira Cloud site, e.g. <code>your-team.atlassian.net</code>. Without it sprout never calls Jira.</td></tr>
             <tr><td><code>JIRA_EMAIL</code></td><td><code>git config user.email</code></td><td>Atlassian account email used with the API token.</td></tr>
             <tr><td><code>JIRA_API_TOKEN</code></td><td><em>keychain</em></td><td>Overrides the stored token (CI, containers).</td></tr>
-            <tr><td><code>SPROUT_BASE</code></td><td>remote default</td><td>Branch to start from, e.g. <code>main</code>, <code>develop</code>, <code>qa</code>.</td></tr>
-            <tr><td><code>SPROUT_REMOTE</code></td><td><code>origin</code></td><td>Remote used for the pull.</td></tr>
-            <tr><td><code>SPROUT_PULL</code></td><td><code>1</code></td><td>Set to <code>0</code> to skip the pull (offline work).</td></tr>
+            <tr><td><code>SPROUT_BASE</code></td><td>remote default</td><td>Branch to start from, e.g. <code>main</code>, <code>develop</code>, <code>qa</code>. <code>--base</code> overrides it for one run.</td></tr>
+            <tr><td><code>SPROUT_REMOTE</code></td><td><code>origin</code></td><td>Remote used for the pull. <code>--remote</code> overrides it for one run.</td></tr>
+            <tr><td><code>SPROUT_PULL</code></td><td><code>1</code></td><td>Set to <code>0</code> to skip the pull (offline work); <code>--no-pull</code> does it for one run.</td></tr>
             <tr><td><code>SPROUT_BRANCH_FORMAT</code></td><td><code>{ID}/{type}-{slug}</code></td><td>Template for the name. Placeholders: <code>{ID}</code>, <code>{type}</code>, <code>{slug}</code>.</td></tr>
             <tr><td><code>SPROUT_TYPES</code></td><td><code>feat fix chore</code></td><td>Allowed types, space-separated.</td></tr>
             <tr><td><code>SPROUT_AI</code></td><td><code>1</code></td><td>Set to <code>0</code> to disable Claude-based name shortening.</td></tr>

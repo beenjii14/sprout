@@ -69,10 +69,38 @@ tmp="$(mktemp -d)"
 
   git switch -q main
   print -r -- "base=$(_sprout_default_base)"
+
+  git switch -q -c develop
+  git -c user.name=t -c user.email=t@example.com commit -q --allow-empty -m dev
+  git push -q -u origin develop
+  git switch -q main
+  sprout PROJ-11 'Add search' --base develop >/dev/null 2>&1
+  print -r -- "onbase=$(git branch --show-current)"
+  print -r -- "tip=$(git rev-parse HEAD)"
+  print -r -- "develop=$(git rev-parse develop~0)"
+
+  git switch -q main
+  sprout --base=develop PROJ-12 'Add filters' >/dev/null 2>&1
+  print -r -- "equals=$(git branch --show-current)"
+
+  git switch -q main
+  git remote set-url origin "$tmp/missing.git"
+  sprout PROJ-13 'Offline work' --no-pull >/dev/null 2>&1
+  print -r -- "nopull=$(git branch --show-current)"
+
+  git switch -q main
+  sprout PROJ-14 'Needs value' --base >/dev/null 2>&1
+  print -r -- "novalue=$?"
 ) > "$tmp/out.txt" 2>&1
 check "creates the branch"           "created=PROJ-10/feat-fix-crash-on-start" "$(grep '^created=' "$tmp/out.txt")"
 check "switches if it already exists" "again=PROJ-10/feat-fix-crash-on-start"  "$(grep '^again=' "$tmp/out.txt")"
 check "detects the default base"     "base=main"                               "$(grep '^base=' "$tmp/out.txt")"
+check "--base starts from that branch"  "onbase=PROJ-11/feat-add-search"   "$(grep '^onbase=' "$tmp/out.txt")"
+check "--base uses the branch tip"      "$(grep '^develop=' "$tmp/out.txt" | sed 's/develop=/tip=/')" "$(grep '^tip=' "$tmp/out.txt")"
+check "--base=<branch> form works"      "equals=PROJ-12/feat-add-filters"  "$(grep '^equals=' "$tmp/out.txt")"
+check "--no-pull skips the pull"        "nopull=PROJ-13/feat-offline-work" "$(grep '^nopull=' "$tmp/out.txt")"
+check "--base without a value fails"    "novalue=1"                        "$(grep '^novalue=' "$tmp/out.txt")"
+check "dry run accepts --base"          "PROJ-15/feat-add-x"               "$(sprout PROJ-15 'Add x' --base develop --no-pull)"
 rm -rf "$tmp"
 
 print "\n$passed passed, $failed failed"

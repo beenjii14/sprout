@@ -179,6 +179,8 @@ sprout PROJ-142 "Add login page"       # you give the title, no Jira lookup
 sprout PROJ-142 "Crash on start" fix   # explicit type (feat | fix | chore)
 sprout https://acme.atlassian.net/browse/PROJ-142
 sprout                                 # uses the Jira URL or key on your clipboard
+sprout PROJ-142 --base develop         # branch off develop, just this once
+sprout PROJ-142 --no-pull              # skip the pull (offline work)
 sprout --dry-run PROJ-142              # print the branch name, do not touch Git
 ```
 
@@ -190,6 +192,9 @@ sprout --dry-run PROJ-142              # print the branch name, do not touch Git
 
 | Flag | Meaning |
 | --- | --- |
+| `-b`, `--base <branch>` | Start from this branch instead of the configured base (also `--base=<branch>`) |
+| `-r`, `--remote <name>` | Pull from this remote instead of the configured one |
+| `--no-pull` | Skip the pull for this run |
 | `-n`, `--dry-run` | Print the branch name only |
 | `-h`, `--help` | Show help |
 | `-v`, `--version` | Show the version |
@@ -220,9 +225,9 @@ Put these in `~/.config/sprout/config` (written by the installer) or export them
 | `SPROUT_JIRA_HOST` | *none* | Jira Cloud site, e.g. `your-team.atlassian.net`. Without it, `sprout` never calls Jira. |
 | `JIRA_EMAIL` | `git config user.email` | Atlassian account email used with the API token. |
 | `JIRA_API_TOKEN` | *keychain* | Overrides the stored token (handy for CI or containers). |
-| `SPROUT_BASE` | remote default branch, else `main` | Branch to start from (`main`, `develop`, `qa`…). |
-| `SPROUT_REMOTE` | `origin` | Remote used for the pull. |
-| `SPROUT_PULL` | `1` | Set to `0` to skip the pull (offline work). |
+| `SPROUT_BASE` | remote default branch, else `main` | Branch to start from (`main`, `develop`, `qa`…). `--base` overrides it for one run. |
+| `SPROUT_REMOTE` | `origin` | Remote used for the pull. `--remote` overrides it for one run. |
+| `SPROUT_PULL` | `1` | Set to `0` to skip the pull (offline work). `--no-pull` does it for one run. |
 | `SPROUT_BRANCH_FORMAT` | `{ID}/{type}-{slug}` | Branch template. Placeholders: `{ID}`, `{type}`, `{slug}`. |
 | `SPROUT_TYPES` | `feat fix chore` | Allowed types, space-separated. |
 | `SPROUT_AI` | `1` | Set to `0` to disable Claude-based shortening. |
