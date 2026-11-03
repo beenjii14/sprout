@@ -17,7 +17,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install dependencies (Ubuntu)
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y zsh jq
@@ -31,7 +31,7 @@ jobs:
     name: Shell lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: ShellCheck installers
         run: |
           sudo apt-get update && sudo apt-get install -y shellcheck zsh
