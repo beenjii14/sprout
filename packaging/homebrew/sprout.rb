@@ -2,7 +2,7 @@ class Sprout < Formula
   desc "Create cleanly named Git branches straight from Jira tickets"
   homepage "https://beenjii14.github.io/sprout/"
   url "https://github.com/beenjii14/sprout/archive/refs/tags/v0.2.0.tar.gz"
-  sha256 "e88c8553668dc56a59f62070d596bb21994575c1fe3118f0591cca97e4dfd8d8"
+  sha256 "5c83cea4800e06269edbb78e01656a2e1d60d3de7c0d9b01c37b0285ce13a50c"
   license "MIT"
   head "https://github.com/beenjii14/sprout.git", branch: "main"
 
