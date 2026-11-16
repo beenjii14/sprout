@@ -4,6 +4,7 @@
 ROOT="${0:A:h:h}"
 export SPROUT_CONFIG=/dev/null SPROUT_AI=0 SPROUT_DRY_RUN=1
 unset JIRA_API_TOKEN SPROUT_JIRA_HOST SPROUT_BASE SPROUT_BRANCH_FORMAT SPROUT_TYPES SPROUT_PULL SPROUT_LANG
+TESTCACHE="$(mktemp -d)"; export XDG_CACHE_HOME="$TESTCACHE"
 source "$ROOT/sprout.plugin.zsh"
 
 typeset -i passed=0 failed=0
@@ -62,6 +63,10 @@ printf '#!/bin/sh\necho "Some other agent tool"\n' > "$fake/otherbin/agent"
 cp "$fake/cursorbin/agent" "$fake/bothbin/agent"
 cp "$fake/myfail" "$fake/bothbin/cursor-agent"
 printf '#!/bin/sh\nsleep 3\necho "slow-but-good"\n' > "$fake/myslow"
+mkdir -p "$fake/chain"
+printf '#!/bin/sh\necho called >> "%s/claude.calls"\nsleep 4\necho "claude-name"\n' "$fake" > "$fake/chain/claude"
+printf '#!/bin/sh\necho "gemini-name"\n' > "$fake/chain/gemini"
+chmod +x "$fake/chain"/*
 chmod +x "$fake"/* "$fake"/cursorbin/* "$fake"/otherbin/* "$fake"/bothbin/*
 old_path="$PATH"; export PATH="$fake:/usr/bin:/bin"; rehash
 (
@@ -89,6 +94,15 @@ old_path="$PATH"; export PATH="$fake:/usr/bin:/bin"; rehash
   SPROUT_AI_CMD="myslow" SPROUT_AI_TIMEOUT=1 _sprout_shorten "Add dark mode toggle" "" > "$fake/o16" 2>/dev/null
   SPROUT_AI_CMD="myslow" SPROUT_AI_TIMEOUT=10 _sprout_shorten "Add dark mode toggle" "" > "$fake/o17" 2>/dev/null
   SPROUT_AI_CMD="myslow" SPROUT_AI_TIMEOUT=1 sprout --doctor > "$fake/o18" 2>&1
+  export XDG_CACHE_HOME="$fake/cache"; PATH="$fake/chain:/usr/bin:/bin"; rehash
+  SPROUT_AI_PROVIDER="claude,gemini" SPROUT_AI_TIMEOUT=1 _sprout_shorten "Some ticket" "" > "$fake/o19" 2>/dev/null
+  SPROUT_AI_PROVIDER="claude,gemini" SPROUT_AI_TIMEOUT=1 _sprout_shorten "Some ticket" "" > "$fake/o20" 2>/dev/null
+  print -r -- "$(wc -l < "$fake/claude.calls" | tr -d ' ')" > "$fake/calls1"
+  SPROUT_AI_PROVIDER="claude" SPROUT_AI_TIMEOUT=1 _sprout_shorten "Add dark mode toggle" "" > "$fake/o21" 2>/dev/null
+  print -r -- "$(wc -l < "$fake/claude.calls" | tr -d ' ')" > "$fake/calls2"
+  rm -rf "$fake/cache"
+  SPROUT_AI_PROVIDER="gemini claude" _sprout_shorten "Some ticket" "" > "$fake/o22" 2>/dev/null
+  export XDG_CACHE_HOME="$TESTCACHE"
 )
 check "custom command, prompt on stdin"     "stdin-provider-name" "$(<"$fake/o1")"
 check "custom command with {prompt}"        "arg-1-name"          "$(<"$fake/o2")"
@@ -100,15 +114,21 @@ check "SPROUT_AI=0 never calls the AI"      "add-dark-mode-toggle" "$(<"$fake/o7
 check "Cursor CLI installed as 'agent' is detected, with --trust" "cursor-agent-name" "$(<"$fake/o8")"
 check "SPROUT_AI_PROVIDER=cursor finds 'agent'"                  "cursor-agent-name" "$(<"$fake/o9")"
 check "an unrelated 'agent' is not used"                         "add-dark-mode-toggle" "$(<"$fake/o10")"
-check "a failed AI call says so on stderr"                       "1" "$(grep -c 'gave no usable name' "$fake/e3")"
-check "--doctor reports a working AI"                            "1" "$(grep -c '^OK: got' "$fake/o11")"
-check "--doctor reports a failing AI"                            "1" "$(grep -c '^FAILED' "$fake/o12")"
+check "a failed AI call says so on stderr"                       "1" "$(grep -c 'no AI gave a usable name' "$fake/e3")"
+check "--doctor reports a working AI"                            "1" "$(grep -c 'OK: got' "$fake/o11")"
+check "--doctor reports a failing AI"                            "1" "$(grep -c 'FAILED' "$fake/o12")"
 check "--doctor explains SPROUT_AI=0"                            "1" "$(grep -c 'turned off' "$fake/o13")"
 check "a current 'agent' wins over a stale 'cursor-agent'"       "cursor-agent-name" "$(<"$fake/o14")"
 check "--doctor shows the command's own error"                   "1" "$(grep -c 'Authentication required' "$fake/o15")"
 check "a slow AI past SPROUT_AI_TIMEOUT falls back"             "add-dark-mode-toggle" "$(<"$fake/o16")"
 check "a slow AI within SPROUT_AI_TIMEOUT is used"               "slow-but-good" "$(<"$fake/o17")"
 check "--doctor suggests SPROUT_AI_TIMEOUT on a timeout"         "1" "$(grep -c 'SPROUT_AI_TIMEOUT=90' "$fake/o18")"
+check "falls back to the next AI when the first is slow"         "gemini-name" "$(<"$fake/o19")"
+check "a slow AI is skipped on the next run (called once)"        "1" "$(<"$fake/calls1")"
+check "the next run still gets a name from the second AI"         "gemini-name" "$(<"$fake/o20")"
+check "a single AI is never skipped, even after a failure"        "2" "$(<"$fake/calls2")"
+check "a single failing AI falls back to the local rule"          "add-dark-mode-toggle" "$(<"$fake/o21")"
+check "providers can be separated by spaces and keep their order" "gemini-name" "$(<"$fake/o22")"
 export PATH="$old_path"; rehash; rm -rf "$fake"
 
 print "real Git flow (temporary repositories)"
@@ -166,5 +186,6 @@ check "--base without a value fails"    "novalue=1"                        "$(gr
 check "dry run accepts --base"          "PROJ-15/feat-add-x"               "$(sprout PROJ-15 'Add x' --base develop --no-pull)"
 rm -rf "$tmp"
 
+rm -rf "$TESTCACHE"
 print "\n$passed passed, $failed failed"
 (( failed == 0 ))

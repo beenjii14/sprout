@@ -4,11 +4,17 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
-## [0.4.3] - 2026-11-16
+## [0.5.0] - 2026-11-16
 
 ### Added
-- `SPROUT_AI_TIMEOUT` sets how long to wait for the AI (default 25 seconds), for tools that are slow to answer.
-- `sprout --doctor` suggests it when the AI does not answer in time.
+- Several AI tools in order of preference (`SPROUT_AI_PROVIDER=claude,cursor`): when the first is slow, fails or
+  answers badly, sprout moves on to the next one, then to the local rule. Only the tools you chose receive the ticket text.
+- An AI that was slow or failed is skipped for an hour (`SPROUT_AI_SKIP_MINUTES`) while another one is available.
+- `SPROUT_AI_TIMEOUT` sets how long to wait for each AI (default 8 seconds with several tools, 25 with one).
+- `sprout-setup` lets you pick one or several of the AI tools it finds, in order.
+
+### Changed
+- `sprout --doctor` tests every AI in your list, with timings and the tool's own error message.
 
 ## [0.4.2] - 2026-11-16
 
@@ -65,7 +71,7 @@ First public release.
 - Zsh tab completion, `--dry-run`, `--help` and `--version`.
 - Offline test suite, GitHub Actions CI on macOS and Ubuntu, and a project website.
 
-[0.4.3]: https://github.com/beenjii14/sprout/releases/tag/v0.4.3
+[0.5.0]: https://github.com/beenjii14/sprout/releases/tag/v0.5.0
 [0.4.2]: https://github.com/beenjii14/sprout/releases/tag/v0.4.2
 [0.4.1]: https://github.com/beenjii14/sprout/releases/tag/v0.4.1
 [0.4.0]: https://github.com/beenjii14/sprout/releases/tag/v0.4.0

@@ -8,7 +8,7 @@
 # Usage:  sprout [-n|--dry-run] [<KEY|URL>] ["<title>"] [<type>]
 # Docs:   sprout --help  |  README.md
 
-typeset -g SPROUT_VERSION="0.4.3"
+typeset -g SPROUT_VERSION="0.5.0"
 
 # Configuration file written by install.sh. Variables already exported in the
 # shell win over the ones in the file.
@@ -149,25 +149,34 @@ _sprout_cursor_bin() {
   return 1
 }
 
-# Fills `reply` with the command that talks to the AI: $SPROUT_AI_CMD, else the
-# preset named by $SPROUT_AI_PROVIDER, else the first supported CLI on the PATH
-# (claude, gemini, codex, copilot, cursor). A `{prompt}` word is replaced by
-# the prompt; without one, the prompt goes to stdin. Returns 1 when none is usable.
+# Prints the AI providers to try, one per line and in order: "custom" when
+# $SPROUT_AI_CMD is set, else the names in $SPROUT_AI_PROVIDER (comma or space
+# separated), else the first supported CLI found on the PATH.
+_sprout_ai_providers() {
+  emulate -L zsh
+  local c p
+  if [[ -n "$SPROUT_AI_CMD" ]]; then print custom; return 0; fi
+  if [[ -n "$SPROUT_AI_PROVIDER" ]]; then
+    for p in ${(s:,:)${SPROUT_AI_PROVIDER// /,}}; do [[ -n "$p" ]] && print -r -- "${(L)p}"; done
+    return 0
+  fi
+  for c in claude gemini codex copilot; do
+    (( $+commands[$c] )) && { print $c; return 0; }
+  done
+  _sprout_cursor_bin >/dev/null && print cursor
+  return 0
+}
+
+# Fills `reply` with the command for provider $1 (default: the first provider): the
+# SPROUT_AI_CMD words for "custom", or a preset. A `{prompt}` word is replaced by the
+# prompt; without one the prompt goes to stdin. Returns 1 when it is not usable.
 _sprout_ai_command() {
   emulate -L zsh
-  local p="${SPROUT_AI_PROVIDER:-}" model="${SPROUT_AI_MODEL:-}" c
+  local p="${1:-$(_sprout_ai_providers | head -n 1)}" model="${SPROUT_AI_MODEL:-}" c
   reply=()
-  if [[ -n "$SPROUT_AI_CMD" ]]; then
-    reply=("${(@Q)${(z)SPROUT_AI_CMD}}")
-    (( $#reply )) && (( $+commands[$reply[1]] )); return
-  fi
-  if [[ -z "$p" ]]; then
-    for c in claude gemini codex copilot; do
-      (( $+commands[$c] )) && { p=$c; break; }
-    done
-    [[ -z "$p" ]] && _sprout_cursor_bin >/dev/null && p=cursor
-  fi
-  case "${(L)p}" in
+  case "$p" in
+    custom)              reply=("${(@Q)${(z)SPROUT_AI_CMD}}")
+                         (( $#reply )) && (( $+commands[$reply[1]] )); return ;;
     claude)              reply=(claude -p --model "${model:-haiku}" '{prompt}') ;;
     gemini)              reply=(gemini ${model:+-m} ${model:+$model} -p '{prompt}') ;;
     codex)               reply=(codex exec ${model:+-m} ${model:+$model} -) ;;
@@ -179,13 +188,52 @@ _sprout_ai_command() {
   (( $+commands[$reply[1]] ))
 }
 
-# Sends $1 to the AI command ($SPROUT_AI_TIMEOUT seconds, default 25) and prints its raw answer.
-_sprout_ai_ask() {
+# Prints the seconds to wait for each AI: $SPROUT_AI_TIMEOUT, else 8 when there is
+# another provider to fall back to ($1 = number of providers), else 25.
+_sprout_ai_timeout() {
   emulate -L zsh
-  local prompt="$1" i has=0 limit="${SPROUT_AI_TIMEOUT:-25}"
-  [[ "$limit" == <-> ]] || limit=25
+  if [[ "$SPROUT_AI_TIMEOUT" == <-> ]]; then print -r -- "$SPROUT_AI_TIMEOUT"
+  elif (( ${1:-1} > 1 )); then print 8
+  else print 25
+  fi
+}
+
+# Directory with the "this AI was slow or failed recently" markers.
+_sprout_ai_state() { print -r -- "${XDG_CACHE_HOME:-$HOME/.cache}/sprout"; }
+
+# True when provider $1 failed within the last $SPROUT_AI_SKIP_MINUTES (default 60).
+_sprout_ai_skipped() {
+  emulate -L zsh
+  local m="${SPROUT_AI_SKIP_MINUTES:-60}" f
+  [[ "$m" == <-> ]] || m=60
+  (( m > 0 )) || return 1
+  f=("$(_sprout_ai_state)/skip-$1"(N.mm-$m))
+  (( $#f ))
+}
+
+# Marks provider $1 as failing ($2 = bad) or healthy (anything else).
+_sprout_ai_mark() {
+  emulate -L zsh
+  local d="$(_sprout_ai_state)"
+  if [[ "$2" == bad ]]; then mkdir -p "$d" 2>/dev/null && : >| "$d/skip-$1" 2>/dev/null
+  else rm -f "$d/skip-$1" 2>/dev/null
+  fi
+  return 0
+}
+
+# True when $1 is a well-formed branch name: 2-5 hyphenated lowercase words.
+_sprout_valid_name() {
+  emulate -L zsh
+  [[ "$1" =~ '^[a-z0-9]+(-[a-z0-9]+){0,5}$' && ${#1} -ge 3 && ${#1} -le 40 ]]
+}
+
+# Runs provider $1 on prompt $2 with a limit of $3 seconds; prints its raw answer
+# and returns its exit status (142 on a timeout). stderr goes to $SPROUT_AI_STDERR.
+_sprout_ai_run() {
+  emulate -L zsh
+  local prompt="$2" limit="$3" i has=0
   local -a cmd
-  _sprout_ai_command || return 1
+  _sprout_ai_command "$1" || return 127
   cmd=("${reply[@]}")
   for i in {1..$#cmd}; do
     if [[ "${cmd[i]}" == *'{prompt}'* ]]; then cmd[i]="${cmd[i]//\{prompt\}/$prompt}"; has=1; fi
@@ -197,24 +245,56 @@ _sprout_ai_ask() {
   fi
 }
 
-# Condenses a ticket into 2-5 slug words: asks the configured AI CLI when there is
-# one, otherwise drops stop-words and keeps the first four meaningful words (the
-# local fallback cannot translate: it keeps the ticket's own words).
+# Asks the providers in order and prints the first well-formed name. A provider that
+# is slow, fails or answers badly is skipped for a while and the next one is tried.
+# Returns 2 when no provider is usable, 1 when all that were tried failed.
+_sprout_ai_ask() {
+  emulate -L zsh
+  local prompt="$1" p out name limit i tried=0
+  local -a provs usable
+  provs=(${(f)"$(_sprout_ai_providers)"})
+  for p in $provs; do _sprout_ai_command "$p" && usable+=("$p"); done
+  (( $#usable )) || return 2
+  limit="$(_sprout_ai_timeout $#usable)"
+  for i in {1..$#usable}; do
+    p="$usable[i]"
+    # Skip a recently failing AI, but never skip when it is the only one left to try.
+    if _sprout_ai_skipped "$p" && (( tried || i < $#usable )); then continue; fi
+    tried=1
+    out="$(_sprout_ai_run "$p" "$prompt" "$limit")"
+    name="${out##*$'\n'}"
+    if _sprout_valid_name "$name"; then
+      _sprout_ai_mark "$p" ok
+      print -r -- "$name"
+      return 0
+    fi
+    _sprout_ai_mark "$p" bad
+    if (( i < $#usable )); then
+      print -u2 -r -- "sprout: $p gave no usable name within ${limit} s; trying ${usable[i+1]}."
+    fi
+  done
+  (( tried )) && return 1
+  return 1
+}
+
+# Condenses a ticket into 2-5 slug words: asks the configured AI tools in order when
+# there are any, otherwise drops stop-words and keeps the first four meaningful words
+# (the local fallback cannot translate: it keeps the ticket's own words).
 _sprout_shorten() {
   emulate -L zsh
-  local title="$1" desc="$2" out=""
+  local title="$1" desc="$2" out="" rc
 
   if [[ "${SPROUT_AI:-1}" != 0 ]]; then
     out="$(_sprout_ai_ask "Create a short git branch name for this Jira ticket. Rules: 2 to 5 lowercase words joined by hyphens, ASCII only (no accents), no prefix (no change type, no ticket key). Short but descriptive. Base it on the TITLE; use the description only to disambiguate and to pick the most representative words. Keep proper nouns and technologies; drop generic verbs (set up, create, implement). Do not invent concepts that are not in the ticket. $(_sprout_language_rule) Reply with ONLY the name.
 
 Ticket title: ${title}
-Description / acceptance criteria: ${desc}" | tail -n1)"
-    # Accept only a well-formed answer, otherwise fall back to the heuristic.
-    if ! [[ "$out" =~ '^[a-z0-9]+(-[a-z0-9]+){0,5}$' && ${#out} -ge 3 && ${#out} -le 40 ]]; then
+Description / acceptance criteria: ${desc}")"
+    rc=$?
+    if (( rc == 1 )); then
       out=""
-      if _sprout_ai_command; then
-        print -u2 -r -- "sprout: ${reply[1]} gave no usable name (limit ${SPROUT_AI_TIMEOUT:-25} s); using the local rule. Run '${SPROUT_COMMAND:-sprout} --doctor' to see why."
-      fi
+      print -u2 -r -- "sprout: no AI gave a usable name; using the local rule. Run '${SPROUT_COMMAND:-sprout} --doctor' to see why."
+    elif (( rc != 0 )); then
+      out=""
     fi
   fi
 
@@ -242,10 +322,11 @@ _sprout_default_base() {
   print main
 }
 
-# Explains which AI sprout would use and runs one real test call.
+# Explains which AI tools sprout would use, in order, and tests each with a real call.
 _sprout_doctor() {
   emulate -L zsh
-  local out start rc=0
+  local p out name start limit errfile ask_rc rc=0 shown=0
+  local -a provs usable
   print -r -- "sprout $SPROUT_VERSION"
   print -r -- "config:   ${SPROUT_CONFIG:-$HOME/.config/sprout/config}"
   print -r -- "SPROUT_AI=${SPROUT_AI:-1}  SPROUT_AI_PROVIDER=${SPROUT_AI_PROVIDER:-<auto>}  SPROUT_AI_CMD=${SPROUT_AI_CMD:-<unset>}"
@@ -254,35 +335,44 @@ _sprout_doctor() {
     print -r -- "Turn it on: set SPROUT_AI=1 in your config, or run sprout-setup again."
     return 0
   fi
-  if ! _sprout_ai_command; then
+  provs=(${(f)"$(_sprout_ai_providers)"})
+  for p in $provs; do _sprout_ai_command "$p" && usable+=("$p"); done
+  if (( ! $#usable )); then
     print -r -- "No usable AI command found. Install one of: claude, gemini, codex, copilot, agent (Cursor CLI),"
     print -r -- "or set SPROUT_AI_CMD. The editors (Cursor, VS Code Copilot) are not the same as their command-line tools."
     return 1
   fi
-  print -r -- "command:  ${(j: :)reply[1,-2]} ..."
-  print -r -- "testing (up to ${SPROUT_AI_TIMEOUT:-25} s)..."
-  local errfile name
-  errfile="$(mktemp)"
-  start=$SECONDS
-  out="$(SPROUT_AI_STDERR="$errfile" _sprout_ai_ask "Create a short git branch name for a Jira ticket titled 'Add dark mode toggle to settings'. Rules: 2 to 5 lowercase words joined by hyphens, ASCII only. Reply with ONLY the name.")"
-  local ask_rc=$?
-  name="${out##*$'\n'}"
-  if [[ "$name" =~ '^[a-z0-9]+(-[a-z0-9]+){0,5}$' && ${#name} -ge 3 && ${#name} -le 40 ]]; then
-    print -r -- "OK: got '$name' in $(( SECONDS - start )) s."
+  limit="$(_sprout_ai_timeout $#usable)"
+  if (( $#usable > 1 )); then
+    print -r -- "order:    ${(j: -> :)usable}   (each gets up to ${limit} s, then the next one is tried)"
   else
-    rc=1
-    print -r -- "FAILED after $(( SECONDS - start )) s (exit code $ask_rc): no usable name."
-    [[ -n "$out" ]] && print -r -- "output:   ${out[1,300]}"
-    if [[ -s "$errfile" ]]; then
-      print -r -- "error:    $(head -c 400 "$errfile")"
-    fi
-    if (( ask_rc == 142 )); then
-      print -r -- "It did not answer in ${SPROUT_AI_TIMEOUT:-25} s. If the tool is just slow, give it more time: export SPROUT_AI_TIMEOUT=90"
-    else
-      print -r -- "Try the same command by hand to see more; it may need login, an update, workspace trust or a network."
-    fi
+    print -r -- "using:    ${usable[1]}   (up to ${limit} s)"
   fi
-  rm -f "$errfile"
+  for p in $usable; do
+    _sprout_ai_command "$p"
+    print -r -- ""
+    print -r -- "[$p] ${(j: :)reply[1,-2]} ..."
+    errfile="$(mktemp)"
+    start=$SECONDS
+    out="$(SPROUT_AI_STDERR="$errfile" _sprout_ai_run "$p" "Create a short git branch name for a Jira ticket titled 'Add dark mode toggle to settings'. Rules: 2 to 5 lowercase words joined by hyphens, ASCII only. Reply with ONLY the name." "$limit")"
+    ask_rc=$?
+    name="${out##*$'\n'}"
+    if _sprout_valid_name "$name"; then
+      print -r -- "  OK: got '$name' in $(( SECONDS - start )) s."
+      _sprout_ai_mark "$p" ok
+    else
+      (( ${#usable} > 1 )) || rc=1
+      print -r -- "  FAILED after $(( SECONDS - start )) s (exit code $ask_rc): no usable name."
+      [[ -n "$out" ]] && print -r -- "  output:   ${out[1,300]}"
+      [[ -s "$errfile" ]] && print -r -- "  error:    $(head -c 400 "$errfile")"
+      if (( ask_rc == 142 )); then
+        print -r -- "  It did not answer in ${limit} s. If the tool is just slow, give it more time: export SPROUT_AI_TIMEOUT=90"
+      else
+        print -r -- "  Try the same command by hand to see more; it may need login, an update, workspace trust or a network."
+      fi
+    fi
+    rm -f "$errfile"
+  done
   return $rc
 }
 

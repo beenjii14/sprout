@@ -130,17 +130,32 @@ set -- $ai_found
 if [ "$#" -eq 0 ]; then
   ai=0
 else
-  choice="${1%%:*}"; vendor="${1#*:}"
+  names=""; for entry in "$@"; do names="$names ${entry%%:*}"; done
+  names="${names# }"
+  first="${1%%:*}"
   if [ "$#" -gt 1 ]; then
-    list=""; for entry in "$@"; do list="$list ${entry%%:*}"; done
-    choice="$(ask "AI CLIs found:$list. Which one should shorten names? (none = local rule)" "$choice")"
-    vendor=""
-    for entry in "$@"; do [ "${entry%%:*}" = "$choice" ] && vendor="${entry#*:}"; done
-    [ -n "$vendor" ] || ai=0
+    info "AI tools found: $names"
+    info "sprout tries them in the order you type; if one is slow or fails it moves on to the next."
+    choice="$(ask "Which ones should sprout use? (names separated by spaces; none = local rule)" "$first")"
+  else
+    choice="$first"
   fi
-  if [ "$ai" -eq 1 ]; then
-    yesno "Use $choice to shorten branch names? The ticket title and description are sent to $vendor" "y" \
-      && ai_provider="$choice" || ai=0
+  chosen=""; vendors=""
+  case "$choice" in none|None|NONE|n|N) choice="" ;; esac
+  for want in $choice; do
+    for entry in "$@"; do
+      if [ "${entry%%:*}" = "$want" ]; then
+        case " $chosen " in *" $want "*) ;; *) chosen="$chosen $want"; vendors="$vendors, ${entry#*:}" ;; esac
+      fi
+    done
+  done
+  chosen="${chosen# }"; vendors="${vendors#, }"
+  if [ -z "$chosen" ]; then
+    ai=0
+  elif yesno "Use $chosen to shorten branch names? The ticket title and description are sent to $vendors" "y"; then
+    ai_provider="$(printf '%s' "$chosen" | tr ' ' ',')"
+  else
+    ai=0
   fi
 fi
 
@@ -174,7 +189,7 @@ mkdir -p "$CONF_DIR"
   [ -n "$base" ]       && printf 'export SPROUT_BASE="${SPROUT_BASE:-%s}"\n' "$base"
   printf 'export SPROUT_AI="${SPROUT_AI:-%s}"\n' "$ai"
   [ -n "$ai_provider" ] && printf 'export SPROUT_AI_PROVIDER="${SPROUT_AI_PROVIDER:-%s}"\n' "$ai_provider"
-  echo '# export SPROUT_AI_TIMEOUT=25           # seconds to wait for the AI before using the local rule'
+  echo '# export SPROUT_AI_TIMEOUT=8             # seconds to wait for each AI (default 8 with several, 25 with one)'
   echo '# export SPROUT_AI_CMD="your-ai-cli {prompt}"  # any AI CLI: {prompt} is replaced by the prompt, or it is sent on stdin'
   echo '# export SPROUT_TYPES="feat fix chore"   # allowed branch types (the type comes from the Jira issue type, default feat)'
   echo '# export SPROUT_LANG="en"                # language of AI-generated names: en, es, pt, fr, de, it, ... or "ticket"'

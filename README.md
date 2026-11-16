@@ -233,9 +233,10 @@ Put these in `~/.config/sprout/config` (written by the installer) or export them
 | `SPROUT_BRANCH_FORMAT` | `{ID}/{type}-{slug}` | Branch template. Placeholders: `{ID}`, `{type}`, `{slug}`. |
 | `SPROUT_TYPES` | `feat fix chore` | Allowed types, space-separated. |
 | `SPROUT_AI` | `1` | Set to `0` to disable AI shortening. |
-| `SPROUT_AI_PROVIDER` | *auto* | `claude`, `gemini`, `codex`, `copilot` or `cursor`. Auto picks the first one found on your `PATH`. |
+| `SPROUT_AI_PROVIDER` | *auto* | Your AI tools in order of preference, e.g. `claude,cursor`. Names: `claude`, `gemini`, `codex`, `copilot`, `cursor`. If one is slow or fails, `sprout` tries the next. Unset: the first one found on your `PATH`. |
 | `SPROUT_AI_CMD` | *unset* | Any AI command. `{prompt}` is replaced by the prompt; without it, the prompt is sent on stdin. Overrides the provider. |
-| `SPROUT_AI_TIMEOUT` | `25` | Seconds to wait for the AI before using the local rule. Raise it (for example `90`) if your AI tool is slow to answer. |
+| `SPROUT_AI_TIMEOUT` | `8` (several AIs) / `25` (one) | Seconds to wait for each AI before moving on to the next one, or to the local rule. Raise it (for example `90`) for a slow tool. |
+| `SPROUT_AI_SKIP_MINUTES` | `60` | How long an AI that was slow or failed is skipped while another one is available. `0` turns this off. |
 | `SPROUT_AI_MODEL` | `haiku` for Claude | Model passed to the provider (`--model`/`-m`). Leave unset for the CLI's own default. |
 | `SPROUT_LANG` | `en` | Language of AI-generated names: `en`, `es`, `pt`, `fr`, `de`, `it`, any language name, or `ticket` to keep the ticket's own language. |
 | `SPROUT_COMMAND` | `sprout` | Rename the command if it clashes with another tool. |
@@ -279,7 +280,7 @@ When an AI CLI is available and `SPROUT_AI` is not `0`, `sprout` sends **the tic
 of its description** to that tool's provider to get a 2–5 word name. The prompt tells the model to base the name on the
 title, keep proper nouns and technologies, never invent concepts, and write the name in English by default (a Spanish
 ticket becomes an English branch name; change it with `SPROUT_LANG`). The answer is validated (`[a-z0-9-]` only, 3–40
-characters); if it fails, times out (25 s) or looks wrong, `sprout` falls back to a local heuristic that drops stop-words
+characters); if it fails, is too slow (8 s per tool by default) or looks wrong, `sprout` tries your next AI and finally falls back to a local heuristic that drops stop-words
 and keeps the first four meaningful words (the heuristic cannot translate, so it keeps the ticket's own words).
 
 **Works with:**
@@ -292,8 +293,14 @@ and keeps the first four meaningful words (the heuristic cannot translate, so it
 | [GitHub Copilot CLI](https://docs.github.com/copilot/how-tos/copilot-cli) | `copilot` | `copilot -s -p "<prompt>"` |
 | [Cursor CLI](https://cursor.com/docs/cli) | `cursor` | `agent -p --trust "<prompt>"` (`cursor-agent` on older installs) |
 
-`sprout` uses the first of these it finds on your `PATH`, and `sprout-setup` shows what it found and lets you choose.
-Set `SPROUT_AI_PROVIDER` to pick one, or `SPROUT_AI_CMD` to use your own command, such as a local model:
+`sprout-setup` shows which of these it found and lets you pick one or several, in order. With several, `sprout` is smart about it:
+if the first AI is slow, fails or answers badly, it moves on to the next one, and it skips an AI that just failed for an hour so you
+are not kept waiting. Only the tools you chose ever receive the ticket text. Pick your tools in `SPROUT_AI_PROVIDER`, or use `SPROUT_AI_CMD`
+for your own command, such as a local model:
+
+```sh
+export SPROUT_AI_PROVIDER="claude,cursor"     # try Claude first, then Cursor, then the local rule
+```
 
 ```sh
 export SPROUT_AI_CMD='ollama run llama3.2'         # a local model: nothing leaves your machine
@@ -343,7 +350,7 @@ English by default, even for Spanish (or other) tickets, when an AI CLI is avail
 
 <br>
 
-Run `sprout --doctor`. It prints the config in use, whether `SPROUT_AI` is on, which AI command it found, and runs a quick test.
+Run `sprout --doctor`. It prints the config in use, the order of your AI tools, and tests each one with timings and its own error message if it fails.
 If the AI is switched off (`SPROUT_AI=0` in `~/.config/sprout/config`), run `sprout-setup` again and pick your tool. If the
 tool asks you to log in the first time, open it once in a terminal and sign in.
 </details>
