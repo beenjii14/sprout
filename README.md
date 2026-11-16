@@ -40,7 +40,8 @@ switch to the base branch, pull, create the branch. Do that ten times a week and
 | --- | --- |
 | 🎫 **One command** | `sprout PROJ-142`, or paste a Jira URL, or just run `sprout` with a link on your clipboard. |
 | 🔎 **Reads Jira for you** | Title, issue type and description become the branch name and the `feat` / `fix` / `chore` prefix. |
-| 🌱 **Short, descriptive, in English** | With an AI CLI installed ([Claude Code](https://claude.com/claude-code), Gemini CLI, Codex, GitHub Copilot CLI, Cursor, or any command you configure), long titles become 2–5 meaningful words, translated to English by default. Without one, a local rule does the job. |
+| 🌱 **Short, descriptive, in English** | Powered by the AI tool you already use, long titles become 2–5 meaningful words, in English by default. No AI? A built-in rule has you covered. |
+| 🤖 **Works with your AI** | [Claude Code](https://claude.com/claude-code), [Gemini CLI](https://geminicli.com), [OpenAI Codex CLI](https://developers.openai.com/codex), [GitHub Copilot CLI](https://docs.github.com/copilot/how-tos/copilot-cli), [Cursor CLI](https://cursor.com/docs/cli), or any command you configure. |
 | 🛡️ **Careful with your work** | Offers to stash uncommitted changes, reuses an existing branch for the ticket, and stops at the first Git error. |
 | ⚙️ **Yours to configure** | Branch format, language, base branch and remote. |
 | 🔐 **Secrets stay secret** | Your API token lives in the macOS Keychain or libsecret, never in a config file. |
@@ -88,7 +89,7 @@ sprout PROJ-142
 | `git` | creates the branches | |
 | `curl`, `jq` | talk to Jira | only needed for ticket lookups |
 | `perl` | accent-safe slugs | preinstalled on macOS and most Linux |
-| an AI CLI: `claude`, `gemini`, `codex`, `copilot` or Cursor's `agent` | *optional*: smarter, translated names | without one, a local rule shortens the title |
+| an AI tool: Claude Code, Gemini CLI, Codex CLI, Copilot CLI or Cursor CLI | *optional*: smarter, translated names | a built-in rule works without one |
 
 Supported: macOS and Linux, Jira Cloud (API v3, API-token authentication). Using `sprout` with an explicit title needs no Jira at all.
 
@@ -280,7 +281,7 @@ ticket becomes an English branch name; change it with `SPROUT_LANG`). The answer
 characters); if it fails, times out (25 s) or looks wrong, `sprout` falls back to a local heuristic that drops stop-words
 and keeps the first four meaningful words (the heuristic cannot translate, so it keeps the ticket's own words).
 
-**Which AI?** Whatever you already use, as long as it has a command-line tool:
+**Works with:**
 
 | Tool | Provider value | Command `sprout` runs |
 | --- | --- | --- |
@@ -290,8 +291,8 @@ and keeps the first four meaningful words (the heuristic cannot translate, so it
 | [GitHub Copilot CLI](https://docs.github.com/copilot/how-tos/copilot-cli) | `copilot` | `copilot -s -p "<prompt>"` |
 | [Cursor CLI](https://cursor.com/docs/cli) | `cursor` | `agent -p --trust "<prompt>"` (`cursor-agent` on older installs) |
 
-With no setting, `sprout` uses the first of these it finds on your `PATH`; `sprout-setup` shows what it found and lets you
-choose. Set `SPROUT_AI_PROVIDER` to force one, or `SPROUT_AI_CMD` for anything else:
+`sprout` uses the first of these it finds on your `PATH`, and `sprout-setup` shows what it found and lets you choose.
+Set `SPROUT_AI_PROVIDER` to pick one, or `SPROUT_AI_CMD` to use your own command, such as a local model:
 
 ```sh
 export SPROUT_AI_CMD='ollama run llama3.2'         # a local model: nothing leaves your machine
@@ -299,25 +300,17 @@ export SPROUT_AI_CMD='llm -m gpt-4o-mini'          # Simon Willison's llm
 export SPROUT_AI_CMD='my-ai --short {prompt}'      # {prompt} becomes an argument; without it, stdin
 ```
 
-> [!IMPORTANT]
-> The command-line tools are separate from the editors. Having the **Cursor** or **VS Code + Copilot** app installed is not
-> enough: `sprout` needs the CLI (`agent` from [cursor.com/cli](https://cursor.com/docs/cli), or `copilot`). Run
-> `sprout --doctor` to see which AI it found and to test it.
-
-> [!NOTE]
-> Only the Claude preset is tested end to end by the maintainer. The others follow each tool's documented non-interactive mode
-> and are covered by tests with stand-in commands, so a new CLI version or a missing login can still break one. When that happens
-> `sprout` falls back to the local rule and tells you; `sprout --doctor` shows why. If one breaks with your version, set `SPROUT_AI_CMD` to the right command
-> and please [open an issue](https://github.com/beenjii14/sprout/issues).
+> [!TIP]
+> Install each tool's command-line version next to its editor (`agent` for Cursor, `copilot` for GitHub Copilot).
+> `sprout --doctor` shows which AI `sprout` found and runs a quick test.
 
 **Language.** Names are written in English by default, so a ticket titled *"Agregar login con SSO para el panel de administración"*
 becomes something like `admin-panel-sso-login`. Set `SPROUT_LANG` to `es`, `pt`, `fr`, `de`, `it`, any language name, or `ticket`
 to keep the ticket's own language.
 
 > [!NOTE]
-> **No AI CLI? No problem.** `sprout` checks for one on every run. If none is found, or `SPROUT_AI=0`, the local rule is used and everything else works the same.
-> `sprout-setup` writes `SPROUT_AI=0` to your config when you decline the question or no AI CLI is installed yet;
-> install one later and set `SPROUT_AI=1` (or delete that line) to turn it on.
+> **No AI tool? A built-in rule has you covered.** `sprout` checks for your AI on every run; with none found, or with `SPROUT_AI=0`, it names the branch with the local rule and everything else works the same.
+> Installed an AI tool later? Run `sprout-setup` again, or set `SPROUT_AI=1`, and you are set.
 
 > [!IMPORTANT]
 > Working with confidential tickets? Set `SPROUT_AI=0`. Nothing but the Jira request then leaves your machine.
@@ -345,21 +338,21 @@ English by default, even for Spanish (or other) tickets, when an AI CLI is avail
 </details>
 
 <details>
-<summary><b>My names are not AI-generated, what is wrong?</b></summary>
+<summary><b>How do I check my AI setup?</b></summary>
 
 <br>
 
-Run `sprout --doctor`. It prints the config in use, whether `SPROUT_AI` is on, which AI command it found, and makes one real test call.
-The usual causes: `SPROUT_AI=0` in `~/.config/sprout/config` (an old setup wrote it when no AI CLI was installed; run `sprout-setup` again),
-only the editor is installed and not its CLI, or the CLI needs to log in first. When an AI call fails, `sprout` also says so on stderr.
+Run `sprout --doctor`. It prints the config in use, whether `SPROUT_AI` is on, which AI command it found, and runs a quick test.
+If the AI is switched off (`SPROUT_AI=0` in `~/.config/sprout/config`), run `sprout-setup` again and pick your tool. If the
+tool asks you to log in the first time, open it once in a terminal and sign in.
 </details>
 
 <details>
-<summary><b>What if I do not use Claude, or have no AI CLI at all?</b></summary>
+<summary><b>Which AI tools does sprout work with?</b></summary>
 
 <br>
 
-`sprout` works with Gemini, Codex, Copilot, Cursor or any command you configure (see [Which AI?](#-ai-assisted-names-and-privacy)). With none, it shortens the title with a local rule (drops stop-words, keeps the first four meaningful words) and keeps the ticket's own words, with no translation.
+Claude Code, Gemini CLI, OpenAI Codex CLI, GitHub Copilot CLI and Cursor CLI, plus any command you set in `SPROUT_AI_CMD` (see [Works with](#-ai-assisted-names-and-privacy)). With none installed, a built-in rule shortens the title.
 </details>
 
 <details>

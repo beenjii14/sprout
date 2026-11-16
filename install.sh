@@ -80,7 +80,7 @@ if ! command -v cursor-agent >/dev/null 2>&1 && command -v agent >/dev/null 2>&1
   ai_found="$ai_found cursor:Cursor"
 fi
 [ -n "$ai_found" ] \
-  || info "No AI CLI found (claude, gemini, codex, copilot, agent/cursor-agent): names will use the built-in rule (still works). Note: the Cursor and Copilot editors are not their command-line tools; install the CLI to use them."
+  || info "No AI tool detected (looked for claude, gemini, codex, copilot and Cursor's agent): a built-in rule will name your branches. Install one and run sprout-setup again to switch to AI names."
 
 # 2. Install the plugin file ---------------------------------------------------
 SRC_DIR=""
