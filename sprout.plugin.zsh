@@ -8,7 +8,7 @@
 # Usage:  sprout [-n|--dry-run] [<KEY|URL>] ["<title>"] [<type>]
 # Docs:   sprout --help  |  README.md
 
-typeset -g SPROUT_VERSION="0.4.1"
+typeset -g SPROUT_VERSION="0.4.2"
 
 # Configuration file written by install.sh. Variables already exported in the
 # shell win over the ones in the file.
@@ -137,14 +137,16 @@ _sprout_language_rule() {
   esac
 }
 
-# Prints the Cursor CLI binary: `cursor-agent` (older installs) or `agent` (current
-# installs, only when its help mentions Cursor). Returns 1 when neither is found.
+# Prints the Cursor CLI binary: `agent` (current installs, only when its help mentions
+# Cursor) or `cursor-agent` (older installs, which can be a stale copy next to a newer
+# `agent`, so it comes second). Returns 1 when neither is found.
 _sprout_cursor_bin() {
   emulate -L zsh
+  if (( $+commands[agent] )) && agent --help </dev/null 2>&1 | head -n 20 | grep -qi cursor; then
+    print agent; return 0
+  fi
   (( $+commands[cursor-agent] )) && { print cursor-agent; return 0; }
-  (( $+commands[agent] )) || return 1
-  agent --help </dev/null 2>&1 | head -n 20 | grep -qi cursor || return 1
-  print agent
+  return 1
 }
 
 # Fills `reply` with the command that talks to the AI: $SPROUT_AI_CMD, else the
@@ -188,9 +190,9 @@ _sprout_ai_ask() {
     if [[ "${cmd[i]}" == *'{prompt}'* ]]; then cmd[i]="${cmd[i]//\{prompt\}/$prompt}"; has=1; fi
   done
   if (( has )); then
-    perl -e 'alarm 25; exec @ARGV' "${cmd[@]}" </dev/null 2>/dev/null
+    perl -e 'alarm 25; exec @ARGV' "${cmd[@]}" </dev/null 2>>"${SPROUT_AI_STDERR:-/dev/null}"
   else
-    printf '%s' "$prompt" | perl -e 'alarm 25; exec @ARGV' "${cmd[@]}" 2>/dev/null
+    printf '%s' "$prompt" | perl -e 'alarm 25; exec @ARGV' "${cmd[@]}" 2>>"${SPROUT_AI_STDERR:-/dev/null}"
   fi
 }
 
@@ -258,15 +260,24 @@ _sprout_doctor() {
   fi
   print -r -- "command:  ${(j: :)reply[1,-2]} ..."
   print -r -- "testing (up to 25 s)..."
+  local errfile name
+  errfile="$(mktemp)"
   start=$SECONDS
-  out="$(_sprout_ai_ask "Create a short git branch name for a Jira ticket titled 'Add dark mode toggle to settings'. Rules: 2 to 5 lowercase words joined by hyphens, ASCII only. Reply with ONLY the name." | tail -n1)"
-  if [[ "$out" =~ '^[a-z0-9]+(-[a-z0-9]+){0,5}$' && ${#out} -ge 3 && ${#out} -le 40 ]]; then
-    print -r -- "OK: got '$out' in $(( SECONDS - start )) s."
+  out="$(SPROUT_AI_STDERR="$errfile" _sprout_ai_ask "Create a short git branch name for a Jira ticket titled 'Add dark mode toggle to settings'. Rules: 2 to 5 lowercase words joined by hyphens, ASCII only. Reply with ONLY the name.")"
+  local ask_rc=$?
+  name="${out##*$'\n'}"
+  if [[ "$name" =~ '^[a-z0-9]+(-[a-z0-9]+){0,5}$' && ${#name} -ge 3 && ${#name} -le 40 ]]; then
+    print -r -- "OK: got '$name' in $(( SECONDS - start )) s."
   else
     rc=1
-    print -r -- "FAILED after $(( SECONDS - start )) s: no usable name (got: '${out:-nothing}')."
-    print -r -- "Run the command by hand in a terminal to see its error; it may need login, workspace trust or a network."
+    print -r -- "FAILED after $(( SECONDS - start )) s (exit code $ask_rc): no usable name."
+    [[ -n "$out" ]] && print -r -- "output:   ${out[1,300]}"
+    if [[ -s "$errfile" ]]; then
+      print -r -- "error:    $(head -c 400 "$errfile")"
+    fi
+    print -r -- "Try the same command by hand to see more; it may need login, an update, workspace trust or a network."
   fi
+  rm -f "$errfile"
   return $rc
 }
 

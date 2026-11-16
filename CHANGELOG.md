@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.4.2] - 2026-11-16
+
+### Fixed
+- A current Cursor `agent` now wins over an older `cursor-agent` left on the `PATH`.
+
+### Changed
+- `sprout --doctor` shows the AI command's exit code, output and its own error message.
+
 ## [0.4.1] - 2026-11-16
 
 ### Fixed
@@ -51,6 +59,7 @@ First public release.
 - Zsh tab completion, `--dry-run`, `--help` and `--version`.
 - Offline test suite, GitHub Actions CI on macOS and Ubuntu, and a project website.
 
+[0.4.2]: https://github.com/beenjii14/sprout/releases/tag/v0.4.2
 [0.4.1]: https://github.com/beenjii14/sprout/releases/tag/v0.4.1
 [0.4.0]: https://github.com/beenjii14/sprout/releases/tag/v0.4.0
 [0.3.0]: https://github.com/beenjii14/sprout/releases/tag/v0.3.0

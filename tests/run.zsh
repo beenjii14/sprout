@@ -54,10 +54,14 @@ printf '#!/bin/sh\ncat >/dev/null\necho "stdin-provider-name"\n' > "$fake/mystdi
 printf '#!/bin/sh\necho "arg-$(echo "$*" | grep -c TITLEMARK)-name"\n' > "$fake/myarg"
 printf '#!/bin/sh\necho "Not A Valid Name!"\n' > "$fake/mybad"
 printf '#!/bin/sh\ncat >/dev/null\necho "from-gemini-cli"\n' > "$fake/gemini"
-mkdir -p "$fake/cursorbin" "$fake/otherbin"
+mkdir -p "$fake/cursorbin" "$fake/otherbin" "$fake/bothbin"
+printf '#!/bin/sh\necho "Error: Authentication required." >&2\nexit 1\n' > "$fake/myfail"
+cp "$fake/cursorbin/agent" "$fake/bothbin/agent" 2>/dev/null
 printf '#!/bin/sh\nif [ "$1" = "--help" ]; then echo "Cursor Agent - usage: agent [options]"; exit 0; fi\ncase "$*" in *--trust*) echo "cursor-agent-name";; *) echo "Needs Trust!";; esac\n' > "$fake/cursorbin/agent"
 printf '#!/bin/sh\necho "Some other agent tool"\n' > "$fake/otherbin/agent"
-chmod +x "$fake"/* "$fake"/cursorbin/* "$fake"/otherbin/*
+cp "$fake/cursorbin/agent" "$fake/bothbin/agent"
+cp "$fake/myfail" "$fake/bothbin/cursor-agent"
+chmod +x "$fake"/* "$fake"/cursorbin/* "$fake"/otherbin/* "$fake"/bothbin/*
 old_path="$PATH"; export PATH="$fake:/usr/bin:/bin"; rehash
 (
   unset SPROUT_DRY_RUN; export SPROUT_AI=1
@@ -77,6 +81,10 @@ old_path="$PATH"; export PATH="$fake:/usr/bin:/bin"; rehash
   SPROUT_AI_CMD="mystdin" sprout --doctor > "$fake/o11" 2>&1
   SPROUT_AI_CMD="mybad" sprout --doctor > "$fake/o12" 2>&1
   SPROUT_AI=0 sprout --doctor > "$fake/o13" 2>&1
+  PATH="$fake/bothbin:/usr/bin:/bin"; rehash
+  _sprout_shorten "Some ticket" "" > "$fake/o14"
+  PATH="$fake:/usr/bin:/bin"; rehash
+  SPROUT_AI_CMD="myfail" sprout --doctor > "$fake/o15" 2>&1
 )
 check "custom command, prompt on stdin"     "stdin-provider-name" "$(<"$fake/o1")"
 check "custom command with {prompt}"        "arg-1-name"          "$(<"$fake/o2")"
@@ -92,6 +100,8 @@ check "a failed AI call says so on stderr"                       "1" "$(grep -c 
 check "--doctor reports a working AI"                            "1" "$(grep -c '^OK: got' "$fake/o11")"
 check "--doctor reports a failing AI"                            "1" "$(grep -c '^FAILED' "$fake/o12")"
 check "--doctor explains SPROUT_AI=0"                            "1" "$(grep -c 'turned off' "$fake/o13")"
+check "a current 'agent' wins over a stale 'cursor-agent'"       "cursor-agent-name" "$(<"$fake/o14")"
+check "--doctor shows the command's own error"                   "1" "$(grep -c 'Authentication required' "$fake/o15")"
 export PATH="$old_path"; rehash; rm -rf "$fake"
 
 print "real Git flow (temporary repositories)"
