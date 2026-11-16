@@ -8,7 +8,7 @@
 # Usage:  sprout [-n|--dry-run] [<KEY|URL>] ["<title>"] [<type>]
 # Docs:   sprout --help  |  README.md
 
-typeset -g SPROUT_VERSION="0.4.2"
+typeset -g SPROUT_VERSION="0.4.3"
 
 # Configuration file written by install.sh. Variables already exported in the
 # shell win over the ones in the file.
@@ -179,10 +179,11 @@ _sprout_ai_command() {
   (( $+commands[$reply[1]] ))
 }
 
-# Sends $1 to the AI command (25 s limit) and prints its raw answer.
+# Sends $1 to the AI command ($SPROUT_AI_TIMEOUT seconds, default 25) and prints its raw answer.
 _sprout_ai_ask() {
   emulate -L zsh
-  local prompt="$1" i has=0
+  local prompt="$1" i has=0 limit="${SPROUT_AI_TIMEOUT:-25}"
+  [[ "$limit" == <-> ]] || limit=25
   local -a cmd
   _sprout_ai_command || return 1
   cmd=("${reply[@]}")
@@ -190,9 +191,9 @@ _sprout_ai_ask() {
     if [[ "${cmd[i]}" == *'{prompt}'* ]]; then cmd[i]="${cmd[i]//\{prompt\}/$prompt}"; has=1; fi
   done
   if (( has )); then
-    perl -e 'alarm 25; exec @ARGV' "${cmd[@]}" </dev/null 2>>"${SPROUT_AI_STDERR:-/dev/null}"
+    perl -e 'alarm shift; exec @ARGV' "$limit" "${cmd[@]}" </dev/null 2>>"${SPROUT_AI_STDERR:-/dev/null}"
   else
-    printf '%s' "$prompt" | perl -e 'alarm 25; exec @ARGV' "${cmd[@]}" 2>>"${SPROUT_AI_STDERR:-/dev/null}"
+    printf '%s' "$prompt" | perl -e 'alarm shift; exec @ARGV' "$limit" "${cmd[@]}" 2>>"${SPROUT_AI_STDERR:-/dev/null}"
   fi
 }
 
@@ -212,7 +213,7 @@ Description / acceptance criteria: ${desc}" | tail -n1)"
     if ! [[ "$out" =~ '^[a-z0-9]+(-[a-z0-9]+){0,5}$' && ${#out} -ge 3 && ${#out} -le 40 ]]; then
       out=""
       if _sprout_ai_command; then
-        print -u2 -r -- "sprout: ${reply[1]} gave no usable name; using the local rule. Run '${SPROUT_COMMAND:-sprout} --doctor' to see why."
+        print -u2 -r -- "sprout: ${reply[1]} gave no usable name (limit ${SPROUT_AI_TIMEOUT:-25} s); using the local rule. Run '${SPROUT_COMMAND:-sprout} --doctor' to see why."
       fi
     fi
   fi
@@ -259,7 +260,7 @@ _sprout_doctor() {
     return 1
   fi
   print -r -- "command:  ${(j: :)reply[1,-2]} ..."
-  print -r -- "testing (up to 25 s)..."
+  print -r -- "testing (up to ${SPROUT_AI_TIMEOUT:-25} s)..."
   local errfile name
   errfile="$(mktemp)"
   start=$SECONDS
@@ -275,7 +276,11 @@ _sprout_doctor() {
     if [[ -s "$errfile" ]]; then
       print -r -- "error:    $(head -c 400 "$errfile")"
     fi
-    print -r -- "Try the same command by hand to see more; it may need login, an update, workspace trust or a network."
+    if (( ask_rc == 142 )); then
+      print -r -- "It did not answer in ${SPROUT_AI_TIMEOUT:-25} s. If the tool is just slow, give it more time: export SPROUT_AI_TIMEOUT=90"
+    else
+      print -r -- "Try the same command by hand to see more; it may need login, an update, workspace trust or a network."
+    fi
   fi
   rm -f "$errfile"
   return $rc

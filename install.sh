@@ -174,6 +174,7 @@ mkdir -p "$CONF_DIR"
   [ -n "$base" ]       && printf 'export SPROUT_BASE="${SPROUT_BASE:-%s}"\n' "$base"
   printf 'export SPROUT_AI="${SPROUT_AI:-%s}"\n' "$ai"
   [ -n "$ai_provider" ] && printf 'export SPROUT_AI_PROVIDER="${SPROUT_AI_PROVIDER:-%s}"\n' "$ai_provider"
+  echo '# export SPROUT_AI_TIMEOUT=25           # seconds to wait for the AI before using the local rule'
   echo '# export SPROUT_AI_CMD="your-ai-cli {prompt}"  # any AI CLI: {prompt} is replaced by the prompt, or it is sent on stdin'
   echo '# export SPROUT_TYPES="feat fix chore"   # allowed branch types (the type comes from the Jira issue type, default feat)'
   echo '# export SPROUT_LANG="en"                # language of AI-generated names: en, es, pt, fr, de, it, ... or "ticket"'

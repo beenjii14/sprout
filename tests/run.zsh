@@ -61,6 +61,7 @@ printf '#!/bin/sh\nif [ "$1" = "--help" ]; then echo "Cursor Agent - usage: agen
 printf '#!/bin/sh\necho "Some other agent tool"\n' > "$fake/otherbin/agent"
 cp "$fake/cursorbin/agent" "$fake/bothbin/agent"
 cp "$fake/myfail" "$fake/bothbin/cursor-agent"
+printf '#!/bin/sh\nsleep 3\necho "slow-but-good"\n' > "$fake/myslow"
 chmod +x "$fake"/* "$fake"/cursorbin/* "$fake"/otherbin/* "$fake"/bothbin/*
 old_path="$PATH"; export PATH="$fake:/usr/bin:/bin"; rehash
 (
@@ -85,6 +86,9 @@ old_path="$PATH"; export PATH="$fake:/usr/bin:/bin"; rehash
   _sprout_shorten "Some ticket" "" > "$fake/o14"
   PATH="$fake:/usr/bin:/bin"; rehash
   SPROUT_AI_CMD="myfail" sprout --doctor > "$fake/o15" 2>&1
+  SPROUT_AI_CMD="myslow" SPROUT_AI_TIMEOUT=1 _sprout_shorten "Add dark mode toggle" "" > "$fake/o16" 2>/dev/null
+  SPROUT_AI_CMD="myslow" SPROUT_AI_TIMEOUT=10 _sprout_shorten "Add dark mode toggle" "" > "$fake/o17" 2>/dev/null
+  SPROUT_AI_CMD="myslow" SPROUT_AI_TIMEOUT=1 sprout --doctor > "$fake/o18" 2>&1
 )
 check "custom command, prompt on stdin"     "stdin-provider-name" "$(<"$fake/o1")"
 check "custom command with {prompt}"        "arg-1-name"          "$(<"$fake/o2")"
@@ -102,6 +106,9 @@ check "--doctor reports a failing AI"                            "1" "$(grep -c 
 check "--doctor explains SPROUT_AI=0"                            "1" "$(grep -c 'turned off' "$fake/o13")"
 check "a current 'agent' wins over a stale 'cursor-agent'"       "cursor-agent-name" "$(<"$fake/o14")"
 check "--doctor shows the command's own error"                   "1" "$(grep -c 'Authentication required' "$fake/o15")"
+check "a slow AI past SPROUT_AI_TIMEOUT falls back"             "add-dark-mode-toggle" "$(<"$fake/o16")"
+check "a slow AI within SPROUT_AI_TIMEOUT is used"               "slow-but-good" "$(<"$fake/o17")"
+check "--doctor suggests SPROUT_AI_TIMEOUT on a timeout"         "1" "$(grep -c 'SPROUT_AI_TIMEOUT=90' "$fake/o18")"
 export PATH="$old_path"; rehash; rm -rf "$fake"
 
 print "real Git flow (temporary repositories)"

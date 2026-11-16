@@ -235,6 +235,7 @@ Put these in `~/.config/sprout/config` (written by the installer) or export them
 | `SPROUT_AI` | `1` | Set to `0` to disable AI shortening. |
 | `SPROUT_AI_PROVIDER` | *auto* | `claude`, `gemini`, `codex`, `copilot` or `cursor`. Auto picks the first one found on your `PATH`. |
 | `SPROUT_AI_CMD` | *unset* | Any AI command. `{prompt}` is replaced by the prompt; without it, the prompt is sent on stdin. Overrides the provider. |
+| `SPROUT_AI_TIMEOUT` | `25` | Seconds to wait for the AI before using the local rule. Raise it (for example `90`) if your AI tool is slow to answer. |
 | `SPROUT_AI_MODEL` | `haiku` for Claude | Model passed to the provider (`--model`/`-m`). Leave unset for the CLI's own default. |
 | `SPROUT_LANG` | `en` | Language of AI-generated names: `en`, `es`, `pt`, `fr`, `de`, `it`, any language name, or `ticket` to keep the ticket's own language. |
 | `SPROUT_COMMAND` | `sprout` | Rename the command if it clashes with another tool. |

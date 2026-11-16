@@ -322,6 +322,7 @@ beenjii14/sprout</code></pre><button class="copy" type="button" data-copy="zinit
             <tr><td><code>SPROUT_AI</code></td><td><code>1</code></td><td>Set to <code>0</code> to disable AI name shortening.</td></tr>
             <tr><td><code>SPROUT_AI_PROVIDER</code></td><td><em>auto</em></td><td><code>claude</code>, <code>gemini</code>, <code>codex</code>, <code>copilot</code> or <code>cursor</code>. Auto picks the first one on your <code>PATH</code>.</td></tr>
             <tr><td><code>SPROUT_AI_CMD</code></td><td><em>unset</em></td><td>Any AI command; <code>{prompt}</code> is replaced by the prompt, otherwise it goes to stdin.</td></tr>
+            <tr><td><code>SPROUT_AI_TIMEOUT</code></td><td><code>25</code></td><td>Seconds to wait for the AI before using the local rule. Raise it (for example <code>90</code>) if your AI tool is slow to answer.</td></tr>
             <tr><td><code>SPROUT_AI_MODEL</code></td><td><code>haiku</code> for Claude</td><td>Model passed to the provider. Unset uses the CLI default.</td></tr>
             <tr><td><code>SPROUT_LANG</code></td><td><code>en</code></td><td>Language of AI-generated names (<code>en</code>, <code>es</code>, <code>pt</code>, <code>fr</code>, <code>de</code>, <code>it</code>, a language name, or <code>ticket</code> to keep the ticket's language).</td></tr>
             <tr><td><code>SPROUT_COMMAND</code></td><td><code>sprout</code></td><td>Rename the command if it clashes with another tool.</td></tr>
