@@ -8,7 +8,7 @@
 # Usage:  sprout [-n|--dry-run] [<KEY|URL>] ["<title>"] [<type>]
 # Docs:   sprout --help  |  README.md
 
-typeset -g SPROUT_VERSION="0.4.0"
+typeset -g SPROUT_VERSION="0.4.1"
 
 # Configuration file written by install.sh. Variables already exported in the
 # shell win over the ones in the file.
@@ -137,9 +137,19 @@ _sprout_language_rule() {
   esac
 }
 
+# Prints the Cursor CLI binary: `cursor-agent` (older installs) or `agent` (current
+# installs, only when its help mentions Cursor). Returns 1 when neither is found.
+_sprout_cursor_bin() {
+  emulate -L zsh
+  (( $+commands[cursor-agent] )) && { print cursor-agent; return 0; }
+  (( $+commands[agent] )) || return 1
+  agent --help </dev/null 2>&1 | head -n 20 | grep -qi cursor || return 1
+  print agent
+}
+
 # Fills `reply` with the command that talks to the AI: $SPROUT_AI_CMD, else the
 # preset named by $SPROUT_AI_PROVIDER, else the first supported CLI on the PATH
-# (claude, gemini, codex, copilot, cursor-agent). A `{prompt}` word is replaced by
+# (claude, gemini, codex, copilot, cursor). A `{prompt}` word is replaced by
 # the prompt; without one, the prompt goes to stdin. Returns 1 when none is usable.
 _sprout_ai_command() {
   emulate -L zsh
@@ -150,16 +160,18 @@ _sprout_ai_command() {
     (( $#reply )) && (( $+commands[$reply[1]] )); return
   fi
   if [[ -z "$p" ]]; then
-    for c in claude gemini codex copilot cursor-agent; do
+    for c in claude gemini codex copilot; do
       (( $+commands[$c] )) && { p=$c; break; }
     done
+    [[ -z "$p" ]] && _sprout_cursor_bin >/dev/null && p=cursor
   fi
   case "${(L)p}" in
     claude)              reply=(claude -p --model "${model:-haiku}" '{prompt}') ;;
     gemini)              reply=(gemini ${model:+-m} ${model:+$model} -p '{prompt}') ;;
     codex)               reply=(codex exec ${model:+-m} ${model:+$model} -) ;;
     copilot)             reply=(copilot -s ${model:+--model} ${model:+$model} -p '{prompt}') ;;
-    cursor|cursor-agent) reply=(cursor-agent -p ${model:+--model} ${model:+$model} '{prompt}') ;;
+    cursor|cursor-agent) c="$(_sprout_cursor_bin)" || return 1
+                         reply=($c -p --trust ${model:+--model} ${model:+$model} '{prompt}') ;;
     *)                   return 1 ;;
   esac
   (( $+commands[$reply[1]] ))
@@ -195,7 +207,12 @@ _sprout_shorten() {
 Ticket title: ${title}
 Description / acceptance criteria: ${desc}" | tail -n1)"
     # Accept only a well-formed answer, otherwise fall back to the heuristic.
-    [[ "$out" =~ '^[a-z0-9]+(-[a-z0-9]+){0,5}$' && ${#out} -ge 3 && ${#out} -le 40 ]] || out=""
+    if ! [[ "$out" =~ '^[a-z0-9]+(-[a-z0-9]+){0,5}$' && ${#out} -ge 3 && ${#out} -le 40 ]]; then
+      out=""
+      if _sprout_ai_command; then
+        print -u2 -r -- "sprout: ${reply[1]} gave no usable name; using the local rule. Run '${SPROUT_COMMAND:-sprout} --doctor' to see why."
+      fi
+    fi
   fi
 
   if [[ -z "$out" ]]; then
@@ -222,6 +239,37 @@ _sprout_default_base() {
   print main
 }
 
+# Explains which AI sprout would use and runs one real test call.
+_sprout_doctor() {
+  emulate -L zsh
+  local out start rc=0
+  print -r -- "sprout $SPROUT_VERSION"
+  print -r -- "config:   ${SPROUT_CONFIG:-$HOME/.config/sprout/config}"
+  print -r -- "SPROUT_AI=${SPROUT_AI:-1}  SPROUT_AI_PROVIDER=${SPROUT_AI_PROVIDER:-<auto>}  SPROUT_AI_CMD=${SPROUT_AI_CMD:-<unset>}"
+  if [[ "${SPROUT_AI:-1}" == 0 ]]; then
+    print -r -- "AI is turned off (SPROUT_AI=0). Names use the local rule."
+    print -r -- "Turn it on: set SPROUT_AI=1 in your config, or run sprout-setup again."
+    return 0
+  fi
+  if ! _sprout_ai_command; then
+    print -r -- "No usable AI command found. Install one of: claude, gemini, codex, copilot, agent (Cursor CLI),"
+    print -r -- "or set SPROUT_AI_CMD. The editors (Cursor, VS Code Copilot) are not the same as their command-line tools."
+    return 1
+  fi
+  print -r -- "command:  ${(j: :)reply[1,-2]} ..."
+  print -r -- "testing (up to 25 s)..."
+  start=$SECONDS
+  out="$(_sprout_ai_ask "Create a short git branch name for a Jira ticket titled 'Add dark mode toggle to settings'. Rules: 2 to 5 lowercase words joined by hyphens, ASCII only. Reply with ONLY the name." | tail -n1)"
+  if [[ "$out" =~ '^[a-z0-9]+(-[a-z0-9]+){0,5}$' && ${#out} -ge 3 && ${#out} -le 40 ]]; then
+    print -r -- "OK: got '$out' in $(( SECONDS - start )) s."
+  else
+    rc=1
+    print -r -- "FAILED after $(( SECONDS - start )) s: no usable name (got: '${out:-nothing}')."
+    print -r -- "Run the command by hand in a terminal to see its error; it may need login, workspace trust or a network."
+  fi
+  return $rc
+}
+
 # Prints the help text.
 _sprout_usage() {
   cat <<EOF
@@ -240,6 +288,7 @@ Options:
   -r, --remote <name>   Pull from this remote instead of the configured one.
       --no-pull         Skip the pull for this run (offline work).
   -n, --dry-run         Print the branch name only; do not touch Git.
+      --doctor          Check which AI sprout uses and test it.
   -h, --help            Show this help.
   -v, --version         Show the version.
 
@@ -263,6 +312,7 @@ _sprout_run() {
       -h|--help)    _sprout_usage; return 0 ;;
       -v|--version) print "sprout $SPROUT_VERSION"; return 0 ;;
       -n|--dry-run) dry=1 ;;
+      --doctor)     _sprout_doctor; return $? ;;
       --no-pull)    pull=0 ;;
       -b|--base|-r|--remote)
         if [[ -z "$2" || "$2" == -* ]]; then
@@ -386,6 +436,7 @@ _sprout_complete() {
     '(-b --base)'{-b,--base}'[start from this branch]:branch:__git_branch_names' \
     '(-r --remote)'{-r,--remote}'[pull from this remote]:remote:__git_remotes' \
     '--no-pull[skip the pull]' \
+    '--doctor[check which AI sprout uses]' \
     '(-n --dry-run)'{-n,--dry-run}'[print the branch name only]' \
     '1:Jira key or URL:' \
     '2:title:' \

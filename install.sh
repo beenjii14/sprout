@@ -74,8 +74,13 @@ ai_found=""
 for entry in $AI_CANDIDATES; do
   command -v "${entry%%:*}" >/dev/null 2>&1 && ai_found="$ai_found $entry"
 done
+# The current Cursor CLI installs as `agent`; accept it only when its help says Cursor.
+if ! command -v cursor-agent >/dev/null 2>&1 && command -v agent >/dev/null 2>&1 \
+   && agent --help </dev/null 2>&1 | head -n 20 | grep -qi cursor; then
+  ai_found="$ai_found cursor:Cursor"
+fi
 [ -n "$ai_found" ] \
-  || info "No AI CLI found (claude, gemini, codex, copilot, cursor-agent): names will use the built-in rule (still works; install one later for smarter names)."
+  || info "No AI CLI found (claude, gemini, codex, copilot, agent/cursor-agent): names will use the built-in rule (still works). Note: the Cursor and Copilot editors are not their command-line tools; install the CLI to use them."
 
 # 2. Install the plugin file ---------------------------------------------------
 SRC_DIR=""

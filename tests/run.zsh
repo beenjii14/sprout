@@ -54,17 +54,29 @@ printf '#!/bin/sh\ncat >/dev/null\necho "stdin-provider-name"\n' > "$fake/mystdi
 printf '#!/bin/sh\necho "arg-$(echo "$*" | grep -c TITLEMARK)-name"\n' > "$fake/myarg"
 printf '#!/bin/sh\necho "Not A Valid Name!"\n' > "$fake/mybad"
 printf '#!/bin/sh\ncat >/dev/null\necho "from-gemini-cli"\n' > "$fake/gemini"
-chmod +x "$fake"/*
+mkdir -p "$fake/cursorbin" "$fake/otherbin"
+printf '#!/bin/sh\nif [ "$1" = "--help" ]; then echo "Cursor Agent - usage: agent [options]"; exit 0; fi\ncase "$*" in *--trust*) echo "cursor-agent-name";; *) echo "Needs Trust!";; esac\n' > "$fake/cursorbin/agent"
+printf '#!/bin/sh\necho "Some other agent tool"\n' > "$fake/otherbin/agent"
+chmod +x "$fake"/* "$fake"/cursorbin/* "$fake"/otherbin/*
 old_path="$PATH"; export PATH="$fake:/usr/bin:/bin"; rehash
 (
   unset SPROUT_DRY_RUN; export SPROUT_AI=1
   SPROUT_AI_CMD="mystdin" _sprout_shorten "Some ticket" "" > "$fake/o1"
   SPROUT_AI_CMD="myarg {prompt}" _sprout_shorten "TITLEMARK ticket" "" > "$fake/o2"
-  SPROUT_AI_CMD="mybad" _sprout_shorten "Add dark mode toggle" "" > "$fake/o3"
+  SPROUT_AI_CMD="mybad" _sprout_shorten "Add dark mode toggle" "" > "$fake/o3" 2>"$fake/e3"
   _sprout_shorten "Some ticket" "" > "$fake/o4"
   SPROUT_AI_PROVIDER=nope _sprout_shorten "Add dark mode toggle" "" > "$fake/o5"
   SPROUT_AI_CMD="doesnotexist" _sprout_shorten "Add dark mode toggle" "" > "$fake/o6"
   SPROUT_AI=0 _sprout_shorten "Add dark mode toggle" "" > "$fake/o7"
+  PATH="$fake/cursorbin:/usr/bin:/bin"; rehash
+  _sprout_shorten "Some ticket" "" > "$fake/o8"
+  SPROUT_AI_PROVIDER=cursor _sprout_shorten "Some ticket" "" > "$fake/o9"
+  PATH="$fake/otherbin:/usr/bin:/bin"; rehash
+  _sprout_shorten "Add dark mode toggle" "" > "$fake/o10" 2>/dev/null
+  PATH="$fake:/usr/bin:/bin"; rehash
+  SPROUT_AI_CMD="mystdin" sprout --doctor > "$fake/o11" 2>&1
+  SPROUT_AI_CMD="mybad" sprout --doctor > "$fake/o12" 2>&1
+  SPROUT_AI=0 sprout --doctor > "$fake/o13" 2>&1
 )
 check "custom command, prompt on stdin"     "stdin-provider-name" "$(<"$fake/o1")"
 check "custom command with {prompt}"        "arg-1-name"          "$(<"$fake/o2")"
@@ -73,6 +85,13 @@ check "auto-detects a supported CLI"        "from-gemini-cli"     "$(<"$fake/o4"
 check "unknown provider falls back"         "add-dark-mode-toggle" "$(<"$fake/o5")"
 check "missing command falls back"          "add-dark-mode-toggle" "$(<"$fake/o6")"
 check "SPROUT_AI=0 never calls the AI"      "add-dark-mode-toggle" "$(<"$fake/o7")"
+check "Cursor CLI installed as 'agent' is detected, with --trust" "cursor-agent-name" "$(<"$fake/o8")"
+check "SPROUT_AI_PROVIDER=cursor finds 'agent'"                  "cursor-agent-name" "$(<"$fake/o9")"
+check "an unrelated 'agent' is not used"                         "add-dark-mode-toggle" "$(<"$fake/o10")"
+check "a failed AI call says so on stderr"                       "1" "$(grep -c 'gave no usable name' "$fake/e3")"
+check "--doctor reports a working AI"                            "1" "$(grep -c '^OK: got' "$fake/o11")"
+check "--doctor reports a failing AI"                            "1" "$(grep -c '^FAILED' "$fake/o12")"
+check "--doctor explains SPROUT_AI=0"                            "1" "$(grep -c 'turned off' "$fake/o13")"
 export PATH="$old_path"; rehash; rm -rf "$fake"
 
 print "real Git flow (temporary repositories)"

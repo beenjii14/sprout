@@ -88,7 +88,7 @@ sprout PROJ-142
 | `git` | creates the branches | |
 | `curl`, `jq` | talk to Jira | only needed for ticket lookups |
 | `perl` | accent-safe slugs | preinstalled on macOS and most Linux |
-| an AI CLI: `claude`, `gemini`, `codex`, `copilot` or `cursor-agent` | *optional*: smarter, translated names | without one, a local rule shortens the title |
+| an AI CLI: `claude`, `gemini`, `codex`, `copilot` or Cursor's `agent` | *optional*: smarter, translated names | without one, a local rule shortens the title |
 
 Supported: macOS and Linux, Jira Cloud (API v3, API-token authentication). Using `sprout` with an explicit title needs no Jira at all.
 
@@ -196,6 +196,7 @@ sprout --dry-run PROJ-142              # print the branch name, do not touch Git
 | `-r`, `--remote <name>` | Pull from this remote instead of the configured one |
 | `--no-pull` | Skip the pull for this run |
 | `-n`, `--dry-run` | Print the branch name only |
+| `--doctor` | Show which AI `sprout` uses and run a test call |
 | `-h`, `--help` | Show help |
 | `-v`, `--version` | Show the version |
 
@@ -231,7 +232,7 @@ Put these in `~/.config/sprout/config` (written by the installer) or export them
 | `SPROUT_BRANCH_FORMAT` | `{ID}/{type}-{slug}` | Branch template. Placeholders: `{ID}`, `{type}`, `{slug}`. |
 | `SPROUT_TYPES` | `feat fix chore` | Allowed types, space-separated. |
 | `SPROUT_AI` | `1` | Set to `0` to disable AI shortening. |
-| `SPROUT_AI_PROVIDER` | *auto* | `claude`, `gemini`, `codex`, `copilot` or `cursor-agent`. Auto picks the first one found on your `PATH`. |
+| `SPROUT_AI_PROVIDER` | *auto* | `claude`, `gemini`, `codex`, `copilot` or `cursor`. Auto picks the first one found on your `PATH`. |
 | `SPROUT_AI_CMD` | *unset* | Any AI command. `{prompt}` is replaced by the prompt; without it, the prompt is sent on stdin. Overrides the provider. |
 | `SPROUT_AI_MODEL` | `haiku` for Claude | Model passed to the provider (`--model`/`-m`). Leave unset for the CLI's own default. |
 | `SPROUT_LANG` | `en` | Language of AI-generated names: `en`, `es`, `pt`, `fr`, `de`, `it`, any language name, or `ticket` to keep the ticket's own language. |
@@ -287,7 +288,7 @@ and keeps the first four meaningful words (the heuristic cannot translate, so it
 | [Gemini CLI](https://geminicli.com) | `gemini` | `gemini -p "<prompt>"` |
 | [OpenAI Codex CLI](https://developers.openai.com/codex) | `codex` | `codex exec -` (prompt on stdin) |
 | [GitHub Copilot CLI](https://docs.github.com/copilot/how-tos/copilot-cli) | `copilot` | `copilot -s -p "<prompt>"` |
-| [Cursor CLI](https://cursor.com/docs/cli) | `cursor-agent` | `cursor-agent -p "<prompt>"` |
+| [Cursor CLI](https://cursor.com/docs/cli) | `cursor` | `agent -p --trust "<prompt>"` (`cursor-agent` on older installs) |
 
 With no setting, `sprout` uses the first of these it finds on your `PATH`; `sprout-setup` shows what it found and lets you
 choose. Set `SPROUT_AI_PROVIDER` to force one, or `SPROUT_AI_CMD` for anything else:
@@ -298,9 +299,15 @@ export SPROUT_AI_CMD='llm -m gpt-4o-mini'          # Simon Willison's llm
 export SPROUT_AI_CMD='my-ai --short {prompt}'      # {prompt} becomes an argument; without it, stdin
 ```
 
+> [!IMPORTANT]
+> The command-line tools are separate from the editors. Having the **Cursor** or **VS Code + Copilot** app installed is not
+> enough: `sprout` needs the CLI (`agent` from [cursor.com/cli](https://cursor.com/docs/cli), or `copilot`). Run
+> `sprout --doctor` to see which AI it found and to test it.
+
 > [!NOTE]
 > Only the Claude preset is tested end to end by the maintainer. The others follow each tool's documented non-interactive mode
-> and are covered by tests with stand-in commands. If one breaks with your version, set `SPROUT_AI_CMD` to the right command
+> and are covered by tests with stand-in commands, so a new CLI version or a missing login can still break one. When that happens
+> `sprout` falls back to the local rule and tells you; `sprout --doctor` shows why. If one breaks with your version, set `SPROUT_AI_CMD` to the right command
 > and please [open an issue](https://github.com/beenjii14/sprout/issues).
 
 **Language.** Names are written in English by default, so a ticket titled *"Agregar login con SSO para el panel de administración"*
@@ -335,6 +342,16 @@ Set `export SPROUT_COMMAND=sp` (any name) in `~/.config/sprout/config` and open 
 <br>
 
 English by default, even for Spanish (or other) tickets, when an AI CLI is available. Change it with `SPROUT_LANG` (`es`, `pt`, `fr`, `de`, `it`, any language name) or use `SPROUT_LANG=ticket` to keep the ticket's language. When you pass the title yourself, it is used as-is.
+</details>
+
+<details>
+<summary><b>My names are not AI-generated, what is wrong?</b></summary>
+
+<br>
+
+Run `sprout --doctor`. It prints the config in use, whether `SPROUT_AI` is on, which AI command it found, and makes one real test call.
+The usual causes: `SPROUT_AI=0` in `~/.config/sprout/config` (an old setup wrote it when no AI CLI was installed; run `sprout-setup` again),
+only the editor is installed and not its CLI, or the CLI needs to log in first. When an AI call fails, `sprout` also says so on stderr.
 </details>
 
 <details>

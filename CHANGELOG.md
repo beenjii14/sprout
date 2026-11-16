@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.4.1] - 2026-11-16
+
+### Fixed
+- Cursor CLI users now get AI names: the current Cursor CLI installs as `agent` (not `cursor-agent`), and headless runs
+  need `--trust`. Both are handled, and an unrelated `agent` command is ignored.
+
+### Added
+- `sprout --doctor` shows the config, which AI command is used and runs a test call.
+- When an AI call fails, `sprout` says so on stderr instead of silently using the local rule.
+- `sprout-setup` explains that editors (Cursor, Copilot) are not their command-line tools.
+
 ## [0.4.0] - 2026-11-03
 
 ### Added
@@ -40,6 +51,7 @@ First public release.
 - Zsh tab completion, `--dry-run`, `--help` and `--version`.
 - Offline test suite, GitHub Actions CI on macOS and Ubuntu, and a project website.
 
+[0.4.1]: https://github.com/beenjii14/sprout/releases/tag/v0.4.1
 [0.4.0]: https://github.com/beenjii14/sprout/releases/tag/v0.4.0
 [0.3.0]: https://github.com/beenjii14/sprout/releases/tag/v0.3.0
 [0.2.0]: https://github.com/beenjii14/sprout/releases/tag/v0.2.0
